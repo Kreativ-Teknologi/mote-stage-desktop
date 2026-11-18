@@ -308,7 +308,14 @@ import './orb-renderer.js';
     const desktop=window.MOTEDesktop;
     if(!desktop?.getNdiOutput)return;
     const button=id('ndiToggle');
+    const sizeForm=id('ndiSizeForm'),custom=id('ndiCustomSize'),width=id('ndiWidth'),height=id('ndiHeight');
+    const sizeKey='mote-ndi-size';
+    const sizeStatus=id('ndiSizeStatus');
     let phase='off',changing=false;
+    function updateSizeFields(){width.disabled=height.disabled=!custom.checked;}
+    function showSize(size){
+      sizeStatus.textContent=size?`NDI output size is ${size.width} × ${size.height}.`:'Automatic size, up to 1920 × 1080.';
+    }
     function render(){
       button.disabled=changing||phase==='starting'||phase==='stopping';
       button.textContent={off:'Start NDI',starting:'Starting NDI…',live:'Stop NDI',stopping:'Stopping NDI…'}[phase];
@@ -319,11 +326,38 @@ import './orb-renderer.js';
       if(state.message)notify(state.message);
     });
     window.addEventListener('pagehide',unsubscribe,{once:true});
-    desktop.getNdiOutput().then(state=>{
-      button.hidden=!state.supported;
+    desktop.getNdiOutput().then(async state=>{
+      if(!state.supported)return;
       phase=state.phase;
       render();
+      const saved=safeLoad(sizeKey,null);
+      if(saved){
+        try{
+          await desktop.setNdiSize(saved);
+          custom.checked=true;
+          width.value=saved.width;
+          height.value=saved.height;
+          showSize(saved);
+        }catch(error){console.warn('Could not restore NDI frame size:',error);}
+      }
+      updateSizeFields();
+      sizeForm.hidden=false;
+      button.hidden=false;
     }).catch(error=>console.error(error));
+    custom.addEventListener('change',updateSizeFields);
+    sizeForm.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const size=custom.checked?{width:width.valueAsNumber,height:height.valueAsNumber}:null;
+      const apply=id('ndiApplySize');
+      apply.disabled=true;
+      try{
+        await desktop.setNdiSize(size);
+        showSize(size);
+        try{localStorage.setItem(sizeKey,JSON.stringify(size));}
+        catch{sizeStatus.textContent+=' Applied for this session.';}
+      }catch(error){sizeStatus.textContent=error.message;}
+      finally{apply.disabled=false;}
+    });
     button.addEventListener('click',async()=>{
       changing=true;
       render();

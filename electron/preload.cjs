@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('MOTEDesktop',{
   version:()=>ipcRenderer.invoke('mote-version'),
   getNdiOutput:()=>ipcRenderer.invoke('mote-get-ndi'),
   setNdiOutput:enabled=>ipcRenderer.invoke('mote-set-ndi',enabled),
+  setNdiSize:size=>ipcRenderer.invoke('mote-set-ndi-size',size),
   onNdiOutput:callback=>{
     const listener=(_event,state)=>callback(state);
     ipcRenderer.on('mote-ndi-state',listener);

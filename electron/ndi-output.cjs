@@ -61,7 +61,16 @@ function createSender(){
 
 function createNdiOutput(onStateChange){
   let state={supported:SUPPORTED,phase:'off',message:''};
-  let run;
+  let run,size=null;
+  function setSize(next){
+    if(next===null){size=null;return;}
+    const {width,height}=next??{};
+    const valid=(value,max)=>Number.isInteger(value)&&value>=16&&value<=max&&value%2===0;
+    if(!valid(width,3840)||!valid(height,2160)){
+      throw new Error('Choose even NDI dimensions from 16 × 16 up to 3840 × 2160.');
+    }
+    if(size?.width!==width||size?.height!==height)size={width,height};
+  }
   function update(phase,message=''){
     state={supported:SUPPORTED,phase,message};
     onStateChange(state);
@@ -90,7 +99,7 @@ function createNdiOutput(onStateChange){
       run=current;
       async function capture(){
         if(win.isDestroyed())throw new Error('Audience window closed. NDI output stopped.');
-        if(state.phase==='live'&&!sender.hasReceiver()){
+        if(state.phase==='live'&&current.frameSize===size&&!sender.hasReceiver()){
           current.lastFrame=performance.now();
           return;
         }
@@ -101,13 +110,33 @@ function createNdiOutput(onStateChange){
           return;
         }
         const {width,height}=image.getSize();
-        const scale=Math.min(1,1920/width,1080/height);
-        const frameWidth=Math.max(2,Math.floor(width*scale/2)*2);
-        const frameHeight=Math.max(2,Math.floor(height*scale/2)*2);
-        const frame=frameWidth===width&&frameHeight===height?image:image.resize({width:frameWidth,height:frameHeight,quality:'good'});
+        const frameSize=size;
+        const scale=Math.min(frameSize?Infinity:1,(frameSize?.width??1920)/width,(frameSize?.height??1080)/height);
+        const round=frameSize?Math.round:Math.floor;
+        const pictureWidth=Math.max(2,round(width*scale/2)*2);
+        const pictureHeight=Math.max(2,round(height*scale/2)*2);
+        const frame=pictureWidth===width&&pictureHeight===height?image:image.resize({width:pictureWidth,height:pictureHeight,quality:'good'});
         const pixels=frame.toBitmap();
-        if(pixels.length!==frameWidth*frameHeight*4)throw new Error('NDI received an unexpected audience window bitmap size.');
-        await sender.send(frameWidth,frameHeight,pixels);
+        if(pixels.length!==pictureWidth*pictureHeight*4)throw new Error('NDI received an unexpected audience window bitmap size.');
+        const frameWidth=frameSize?.width??pictureWidth,frameHeight=frameSize?.height??pictureHeight;
+        let outputPixels=pixels;
+        if(frameWidth!==pictureWidth||frameHeight!==pictureHeight){
+          const pictureStride=pictureWidth*4,frameStride=frameWidth*4;
+          const bytes=frameStride*frameHeight;
+          if(current.padded?.length!==bytes)current.padded=Buffer.allocUnsafe(bytes);
+          outputPixels=current.padded;
+          // Match the backing color at the corners so a keyed blackout covers the padding.
+          const corner=pixels.readUInt32LE(0);
+          const solidCorners=[pictureStride-4,pixels.length-pictureStride,pixels.length-4]
+            .every(offset=>pixels.readUInt32LE(offset)===corner);
+          outputPixels.fill(solidCorners?pixels.subarray(0,4):0);
+          const offset=(frameHeight-pictureHeight)/2*frameStride+(frameWidth-pictureWidth)/2*4;
+          for(let row=0;row<pictureHeight;row++){
+            pixels.copy(outputPixels,offset+row*frameStride,row*pictureStride,(row+1)*pictureStride);
+          }
+        }else current.padded=null;
+        await sender.send(frameWidth,frameHeight,outputPixels);
+        current.frameSize=frameSize;
         current.lastFrame=performance.now();
         if(!current.stopping&&state.phase==='starting')update('live',SOURCE_NAME+' is available on the local network.');
       }
@@ -128,7 +157,7 @@ function createNdiOutput(onStateChange){
     }
     return state;
   }
-  return {start,stop,getState:()=>state,isRunning:()=>!!run};
+  return {start,stop,setSize,getState:()=>state,isRunning:()=>!!run};
 }
 
 module.exports={createNdiOutput};

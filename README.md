@@ -44,6 +44,8 @@ The controller opens maximized as a normal resizable window on Actor, with a sep
 
 On Windows x64 with [NDI Tools](https://ndi.video/tools/) installed, click **Start NDI** beside **Open avatar window**. Select **MOTE Stage** under your computer's name in NDI Studio Monitor or another NDI receiver. The source carries the audience window's video at up to 30 fps and fits within 1920 × 1080 while keeping the window's aspect ratio. Click **Stop NDI** or close the audience window to end the feed. NDI starts off each time you launch the app.
 
+In **Settings → Output → NDI frame size**, enable the custom width and height, enter even pixel dimensions up to 3840 × 2160, and click **Apply size**. The new size takes effect during an active NDI feed. The picture fits inside the selected frame without stretching, and the preference is saved on this computer.
+
 ## Using MOTE Stage
 
 - Enable microphone input to animate the mouth and optics. Choose your audio device, sensitivity, and noise gate.

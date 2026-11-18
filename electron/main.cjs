@@ -76,6 +76,7 @@ app.whenReady().then(()=>{
     }
   }
   ipcMain.handle('mote-get-ndi',event=>{requireController(event);return ndi.getState();});
+  ipcMain.handle('mote-set-ndi-size',(event,size)=>{requireController(event);ndi.setSize(size);});
   ipcMain.handle('mote-set-ndi',(event,enabled)=>{
     requireController(event);
     if(enabled!==true)return ndi.stop();
