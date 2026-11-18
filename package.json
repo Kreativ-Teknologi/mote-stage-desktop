@@ -60,5 +60,8 @@
       "shortcutName": "MOTE Stage"
     }
   },
-  "type": "module"
+  "type": "module",
+  "optionalDependencies": {
+    "koffi": "3.3.8"
+  }
 }

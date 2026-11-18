@@ -5,5 +5,7 @@
 - MediaPipe Face Landmarker model, float16 version 1, includes blendshape and facial transformation output. Model source: https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task. See upstream model documentation: https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker.
 - Electron 45.3.0: MIT; packaged runtime distributions include Electron/Chromium notices.
 - electron-builder 26.18.0: MIT; development/packaging dependency.
+- Koffi 3.3.8: MIT; its license is included in the installed dependency. Upstream: https://koffi.dev/.
+- Optional video output uses the separately installed NDI® runtime, provided by Vizrt NDI AB. NDI® is a registered trademark of Vizrt NDI AB. See https://ndi.video/.
 
 The desktop wrapper and packaged web assets are provided as a source build kit. No claim is made to ownership of third-party libraries or models.

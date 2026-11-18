@@ -6,6 +6,7 @@ import path from 'node:path';
 const require=createRequire(import.meta.url);
 const {resolveAsset,isLocal}=require('../electron/paths.cjs');
 const root=path.resolve('web');
+execFileSync(process.execPath,['--check','electron/ndi-output.cjs'],{stdio:'inherit'});
 assert.equal(resolveAsset(root,'mote://stage/'),path.join(root,'index.html'));
 assert.equal(resolveAsset(root,'mote://stage/%2e%2e%2fprivate'),null);
 assert.equal(resolveAsset(root,'mote://stage/..%5cprivate'),null);

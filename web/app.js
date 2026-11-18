@@ -296,7 +296,37 @@ import './orb-renderer.js';
     catch(_){if(STAGE_MODE)id('stageConnection').textContent='USE BROWSER FULLSCREEN (F11)';}
   }
 
+  function setupNdiOutput(){
+    const desktop=window.MOTEDesktop;
+    if(!desktop?.getNdiOutput)return;
+    const button=id('ndiToggle');
+    let phase='off',changing=false;
+    function render(){
+      button.disabled=changing||phase==='starting'||phase==='stopping';
+      button.textContent={off:'Start NDI',starting:'Starting NDI…',live:'Stop NDI',stopping:'Stopping NDI…'}[phase];
+    }
+    const unsubscribe=desktop.onNdiOutput(state=>{
+      phase=state.phase;
+      render();
+      if(state.message)notify(state.message);
+    });
+    window.addEventListener('pagehide',unsubscribe,{once:true});
+    desktop.getNdiOutput().then(state=>{
+      button.hidden=!state.supported;
+      phase=state.phase;
+      render();
+    }).catch(error=>console.error(error));
+    button.addEventListener('click',async()=>{
+      changing=true;
+      render();
+      try{await desktop.setNdiOutput(phase==='off');}
+      catch(error){notify(error.message);}
+      finally{changing=false;render();}
+    });
+  }
+
   function setupConsole(){
+    setupNdiOutput();
     calibrationUI=createCalibrationUI({webcam,notify});
     const selectTab=name=>{
       document.body.dataset.tab=name;
@@ -314,10 +344,43 @@ import './orb-renderer.js';
     id('actorActionMode').addEventListener('change',e=>setState({actorActionMode:e.target.value}));
     document.querySelectorAll('button[data-tab]').forEach(b=>b.addEventListener('click',()=>selectTab(b.dataset.tab)));
 
+    const cameraDevice=id('cameraDevice'),media=navigator.mediaDevices;
+    const cameraDeviceKey='mote-camera-device';
+    const savedCamera=safeLoad(cameraDeviceKey,'');
+    let selectedCamera=typeof savedCamera==='string'?savedCamera:'',deviceRefresh=0;
+    function showCameraDevices(devices){
+      const options=devices.filter(device=>device.kind==='videoinput'&&device.deviceId)
+        .map((device,index)=>new Option(device.label||`Camera ${index+1}`,device.deviceId));
+      if(selectedCamera&&!options.some(option=>option.value===selectedCamera)){
+        options.push(new Option('Saved camera (unavailable)',selectedCamera));
+      }
+      cameraDevice.replaceChildren(new Option('System default',''),...options);
+      cameraDevice.value=selectedCamera;
+    }
+    async function refreshCameraDevices(){
+      const refresh=++deviceRefresh;
+      try{
+        const devices=await media?.enumerateDevices();
+        if(refresh===deviceRefresh&&devices)showCameraDevices(devices);
+      }catch{/* The system default remains available when enumeration fails. */}
+    }
+    showCameraDevices([]);
+    refreshCameraDevices();
+    media?.addEventListener('devicechange',refreshCameraDevices);
+    cameraDevice.addEventListener('change',()=>{
+      selectedCamera=cameraDevice.value;
+      try{localStorage.setItem(cameraDeviceKey,JSON.stringify(selectedCamera));}catch{/* session only */}
+    });
     id('cameraToggle').addEventListener('click',async()=>{
-      const b=id('cameraToggle');b.disabled=false;
-      if(webcam.active||webcam.starting){cameraRequested=false;trackingTestUntil=0;webcam.stop();}else{cameraRequested=true;const pending=webcam.start();b.textContent='Cancel camera connection';if(!await pending&&!webcam.starting&&!webcam.active)cameraRequested=false;}
-      b.textContent=webcam.active?'Disable webcam':'Enable webcam head tracking';b.disabled=false;
+      if(webcam.active||webcam.starting){cameraRequested=false;trackingTestUntil=0;webcam.stop();}
+      else{
+        cameraRequested=true;
+        const pending=webcam.start(selectedCamera);
+        updateCameraControls();
+        if(!await pending&&!webcam.starting&&!webcam.active)cameraRequested=false;
+        refreshCameraDevices();
+      }
+      updateCameraControls();
     });
     id('cameraCenter').addEventListener('click',()=>webcam.calibrate());
     id('freeHeadMovement').addEventListener('change',e=>setState({freeHeadMovement:e.target.checked}));
@@ -326,7 +389,7 @@ import './orb-renderer.js';
     id('cameraFace').addEventListener('change',e=>setState({cameraFace:e.target.checked}));
     id('trackingFailsafe').addEventListener('change',e=>setState({trackingFailsafe:e.target.checked}));
     id('testTrackingLoss').addEventListener('click',()=>{trackingTestUntil=performance.now()+2600;notify('Testing tracking loss. Nord will shut down, then restore.');});
-    window.addEventListener('pagehide',()=>webcam.stop());
+    window.addEventListener('pagehide',()=>{media?.removeEventListener('devicechange',refreshCameraDevices);webcam.stop();});
     id('expressionMode').addEventListener('change',e=>{setState({expressionMode:e.target.value});candidateSince=performance.now();});
     $$('.role-btn').forEach(b=>b.addEventListener('click',()=>setState({role:b.dataset.role,activeCue:-1})));
     id('characterName').addEventListener('input',e=>setState({name:e.target.value.slice(0,24)}));
@@ -673,6 +736,10 @@ import './orb-renderer.js';
       const n=id('band-'+name);if(n)n.style.width=Math.round(meter[name]*100)+'%';
     }
   }
+  function updateCameraControls(){
+    id('cameraToggle').textContent=webcam.starting?'Cancel camera connection':webcam.active?'Disable webcam':'Enable webcam head tracking';
+    id('cameraDevice').disabled=webcam.starting||webcam.active;
+  }
   function controllerTick(){
     const now=performance.now();
     tracking=webcam.tick(now);trackingAt=now;calibrationUI?.update();
@@ -686,7 +753,7 @@ import './orb-renderer.js';
     id('trackingFailsafeStatus').textContent=safety.status;
     if(state.trackingBlackout!==safety.blackout){state.trackingBlackout=safety.blackout;broadcastState();}
     if(now-lastTrackingSend>66){post({type:'tracking',sample:testing?null:tracking});lastTrackingSend=now;}
-    id('cameraToggle').textContent=webcam.starting?'Cancel camera connection':webcam.active?'Disable webcam':'Enable webcam head tracking';
+    updateCameraControls();
     updateAudio(now);driveExpression(now);updateActorControls();
     if(now-heartbeatAt>1000){
       heartbeatAt=now;post({type:'state',state:{...state}});post({type:'heartbeat'});

@@ -4,7 +4,7 @@ This project contains the current MOTE Stage avatar, desktop window support, and
 
 ## Offline operation
 
-The installed app needs **no internet connection, browser, account, server, API key, or Node.js installation**. Three.js, the face-tracking model, its WebAssembly engine, and all interface assets are bundled. External web requests are blocked inside the app. Microphone audio and camera frames stay on the computer. The projector window communicates locally with the controller.
+The installed app needs **no internet connection, browser, account, server, API key, or Node.js installation**. Three.js, the face-tracking model, its WebAssembly engine, and all interface assets are bundled. External web requests are blocked in the app's web content. Microphone audio and raw camera frames stay on the computer. The projector window communicates locally with the controller. Optional NDI output sends the rendered audience video over the local network when enabled.
 
 **The first build requires internet** to install the pinned Electron and packaging tools. This source ZIP is a build kit, not a collection of prebuilt apps. Once you build an installer, you can copy it to another supported computer and install and run it offline. Build on a Mac for Mac; build on Windows for Windows.
 
@@ -41,6 +41,8 @@ The default Luminous look follows a soft pastel glowing-orb direction: a uniform
 ## Control desk and avatar output
 
 The controller opens maximized as a normal resizable window on Actor, with a separate Settings tab for input, appearance, and cue setup. The avatar opens automatically in a separate native window. Two large 16:9 local monitors below the Actor buttons show the camera and a lightweight live Nord view, even when the separate stage window is elsewhere. The projector keeps its own full-quality renderer. Blackout collapses one picture plane into a centered phosphor beam. Resting expressions keep the mouth closed until voice or webcam jaw input opens it.
+
+On Windows x64 with [NDI Tools](https://ndi.video/tools/) installed, click **Start NDI** beside **Open avatar window**. Select **MOTE Stage** under your computer's name in NDI Studio Monitor or another NDI receiver. The source carries the audience window's video at up to 30 fps and fits within 1920 × 1080 while keeping the window's aspect ratio. Click **Stop NDI** or close the audience window to end the feed. NDI starts off each time you launch the app.
 
 ## Using MOTE Stage
 

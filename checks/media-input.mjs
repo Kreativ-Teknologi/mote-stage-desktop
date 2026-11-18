@@ -31,7 +31,10 @@ try{
   start=webcam.start();await flush();assert.ok(worker);assert.equal(webcam.starting,true);webcam.stop();assert.equal(await start,false,'Never-settling tracker init can be cancelled');assert.ok(worker.terminated);assert.equal(modelStream.stopped,1);
   worker.onmessage({data:{type:'ready'}});assert.equal(webcam.active,false,'Late worker events cannot restart cancelled tracking');assert.equal(status.textContent,'Camera off');
   globalThis.Worker=class{constructor(){worker=this;}postMessage(){queueMicrotask(()=>this.onmessage({data:{type:'ready'}}));}terminate(){}};
-  const recovered=makeStream();setMedia(async()=>recovered.stream);assert.equal(await webcam.start(),true,'Camera can start again after cancelling startup');assert.equal(webcam.starting,false);assert.equal(webcam.active,true);webcam.stop();assert.equal(recovered.stopped,1);
+  const recovered=makeStream();setMedia(async constraints=>{requested=constraints;return recovered.stream;});
+  assert.equal(await webcam.start('integrated-camera'),true,'Camera can start again after cancelling startup');
+  assert.deepEqual(requested,{video:{width:{ideal:640},height:{ideal:480},deviceId:{exact:'integrated-camera'}},audio:false},'An explicit input bypasses the system default');
+  assert.equal(webcam.starting,false);assert.equal(webcam.active,true);webcam.stop();assert.equal(recovered.stopped,1);
 }finally{
   if(originalNavigator)Object.defineProperty(globalThis,'navigator',originalNavigator);else delete globalThis.navigator;
   if(originalWorker===undefined)delete globalThis.Worker;else globalThis.Worker=originalWorker;

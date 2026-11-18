@@ -28,10 +28,11 @@ export function createWebcam(video,status){
     catch(error){calibrationStatus=error.message;return false;}
   }
   function centerHead(){if(active&&raw&&performance.now()-seen<350){origin={yaw:raw.yaw,pitch:raw.pitch,roll:raw.roll,position:raw.position?{...raw.position}:null};filter.reset();status.textContent='Head centered';return true;}status.textContent='Find your face before centering';return false;}
-  async function start(){
+  async function start(deviceId=''){
     stop();const run=generation,controller=new AbortController();startupController=controller;starting=true;status.textContent='Requesting camera access…';
     try{
-      const camera=await requestLocalMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false},{signal:controller.signal});
+      const input=deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'};
+      const camera=await requestLocalMedia({video:{width:{ideal:640},height:{ideal:480},...input},audio:false},{signal:controller.signal});
       if(run!==generation){camera.getTracks().forEach(t=>t.stop());return false;}
       stream=camera;video.srcObject=stream;status.textContent='Starting camera video…';await waitForStartup(video.play(),controller.signal,10000,'Camera video did not start. Try enabling the webcam again.');if(run!==generation)return false;
       status.textContent='Loading face tracker…';
