@@ -1,0 +1,333 @@
+Nord desktop 1.20.0 — continuous performance and clean Thinking handoff
+
+CURRENT VALIDATION (2026-11-16)
+- All 23 source/runtime check scripts pass.
+- New checks verify one procedural phase for controller and audience output,
+  late output reconnection, non-rewinding rapid actions at 30/60/120/240 fps,
+  exact zero-delta pose holding and repeated Thinking continuity.
+- Facial handoff checks verify that the normal face and loading dots never
+  illuminate together and that both endpoints restore exactly.
+- Direct stage-link checks verify transport of the transient show-clock origin.
+- Native 1.20.0 output rendered Thinking's rounded square and three centered
+  emissive dots. Controller and independent audience window connected.
+- Microphone and webcam restored and confirmed live in Actor. Existing local
+  calibration and appearance settings retained; no calibration captures changed.
+- Renderer diagnostics contain only MediaPipe's CPU delegate initialization;
+  no shader or rendering errors logged.
+- All 48 runtime files match the packaged ASAR by SHA-256; installed ASAR matches
+  the verified build. DMG checksum valid. Previous app retained as a dated backup.
+- Windows and Intel Mac runtime remain untested on this Apple silicon Mac.
+
+Previous validation record follows.
+----------------------------------
+
+Nord desktop 1.19.0 — rounded smile eyes and deliberate gestures
+
+CURRENT VALIDATION (2026-11-16)
+- All 22 source/runtime check scripts pass.
+- New checks cover curved 3D smile-eye geometry, finite normals, complete optical
+  containment, original-shape restoration and full blink extinction.
+- Gaze tests cover left/right symmetry, bounded lead motion, full settling and
+  frame-rate independence at 30/60/120/240 fps.
+- Nod tests confirm one downstroke for all three-to-five-second durations,
+  restrained angular range and independence from the tracked head's base pitch.
+- Native 1.19.0 Smile/star face rendered with the rounded eye contours.
+  Microphone and webcam tracking restored and confirmed live; prior calibration
+  retained. Returned to the actor's current Appearance panel.
+- All 46 runtime files match the packaged ASAR by SHA-256; installed ASAR matches
+  the verified build. DMG checksum valid. Previous app retained as a dated backup.
+- Windows and Intel Mac runtime remain untested on this Apple silicon Mac.
+
+FACIAL PERFORMANCE
+- Smile softly arches the filled white eye volumes, including tracked smiles.
+  No pupils, lashes, outlines or facial image assets were added.
+- Eye arcs contract with closure; closed eyes remain hidden with zero emission.
+- Eyes briefly lead Look left/right before returning to their normal position.
+- Nod makes one deliberate movement with restrained anticipation and settling,
+  layered over the actor's tracked pitch instead of recentering their head.
+
+Previous validation record follows.
+----------------------------------
+
+Nord desktop 1.18.0 — fluid action transitions and curved-glass finish
+
+CURRENT VALIDATION (2026-11-16)
+- All 21 source/runtime check scripts pass.
+- New checks cover fluid action replacement, complete release extinction,
+  centered smoothed thinking dots, frame-rate independence and the full 150%
+  body-reaction range.
+- Surface-normal checks compare complete displaced geometry against analytical
+  ellipsoid normals and exercise morphed silhouettes, poles and stronger shapes.
+- Native glass/star rendering checked in 1.18.0 with the corrected curvature.
+  No shader errors logged. Crossfade timing and dot centering checked numerically;
+  live action-button checks were interrupted by user interaction.
+- All 45 runtime files match the packaged ASAR by SHA-256. Installed app ASAR
+  matches the verified build; DMG checksum valid. Prior installed version retained
+  as a dated backup. Microphone restored; camera remained off as found.
+- Windows and Intel Mac native runtime remain untested on this Apple silicon Mac.
+
+CHARACTER POLISH
+- Body silhouettes crossfade between actions instead of disappearing in one frame.
+- Thinking dots grow/fade as emissive 3D volumes and remain centered through changes.
+- Specular light/refraction use central-difference normals of the complete shaped
+  surface, including voice motion, waves, breathing and action geometry.
+- Approved silhouettes, reduced bob and the Angry/Afraid profiles are retained.
+- Surface reactions above 100% now affect the newer body morphs as well.
+
+Previous validation record follows.
+----------------------------------
+
+Nord desktop 1.17.2 — whole-body action performances
+
+CURRENT VALIDATION (2026-11-16)
+- All 19 source/runtime check scripts pass. New body checks cover the complete
+  3/4/5-second square-to-triangle-to-sphere sequence, exact face replacement,
+  centered 1/2/3-dot animation, optical front clearance, projected star valleys,
+  smooth timing, disabled reactions and preserved Angry/Afraid body behavior.
+- Head position and expression bob are composed once per frame. Tests at 30,
+  60, 120 and 240 fps verify bounded vertical motion and stable tracked anchors.
+- Native 1.17.1 inspection verified the rounded square and thinking-dot face,
+  the clearer five-point Smile star, cushion-shaped Frown and round-core Listening.
+  The final 1.17.2 adds the motion accumulation correction to these same shapes.
+- Thinking's triangular phase and all dot counts are verified numerically; native
+  timed screenshots verified the square/dot replacement and return to the face.
+- Final 1.17.2 installed app opened on Actor with microphone and webcam tracking
+  live; prior actor calibration retained. App packaged successfully. All 43 runtime files match source by
+  SHA-256 and the installed ASAR matches the build; DMG checksum valid.
+- Windows and Intel Mac native runtime remain untested on this Apple silicon Mac.
+
+USER-REQUESTED REFINEMENTS
+- Smile uses five distinct rounded star points instead of small flower-like lobes.
+  Removed the strong squash/stretch and reduced the joy bob from .07 to .010.
+- Frown uses a slumped soft cushion instead of the rejected teardrop.
+- Listening preserves the round core with local side ripples instead of a wide oval.
+- Angry spikes and Afraid shiver surface profiles remain unchanged.
+- All new shapes are real procedural 3D geometry, including the white thinking dots.
+
+Previous validation record follows.
+----------------------------------
+
+Nord desktop 1.16.3 — actor tracking, character dynamics and independent background
+
+CURRENT VALIDATION (2026-11-16)
+- All 18 offline source/runtime check scripts pass, including actual appearance
+  and actor-profile UI handlers tested with DOM fixtures.
+- Apple silicon native packaging completed for DMG and app ZIP. All 42 bundled
+  runtime files match source by SHA-256; installed app ASAR matches the build.
+  Previous installed 1.0.0 app retained as a dated backup. DMG checksum valid.
+- Native UI verified: maximized normal window; larger side-by-side 16:9 Actor
+  monitors; clean separate audience window; organized Tracking & actors Settings.
+- Native glass checked at 100% frosting: Gaussian filtering removes the former
+  coarse mip blocks. Frosting restored to the actor's previous value afterward.
+- Angry visibly reshapes the 3D shell; Smile visibly forms a broad glowing mouth.
+  Speaking-mode Test voice shows the broad speech aperture. Original Listening
+  role restored after testing.
+- Independent star hue and background fill visibly changed the audience render
+  without changing the character palette. Test changes restored using Undo.
+- Actor calibration capture, learned ranges, profile save/load/delete/undo,
+  active-profile relaunch, face-loss guards and camera translation are verified
+  with realistic numerical/worker fixtures. In the final installed app, live
+  tracking armed successfully and the actor captured neutral and expressive range;
+  the UI reported an unsaved actor calibration ready for naming and saving.
+- Device request timeout, cancellation, late-stream cleanup and webcam restart
+  verified with asynchronous browser/worker fixtures. Native microphone restored
+  successfully in the installed 1.16.3 build, followed by webcam tracking.
+  Free head movement was enabled by the actor and retained.
+- Windows and Intel Mac native packaging/runtime were not tested on this Mac.
+
+FEATURES
+- Adaptive head/expression smoothing, fast complete blink closure and per-actor
+  neutral/range calibration with local named profiles (no images are stored).
+- Optional free camera translation across stage, while retaining head turns/nods;
+  range adjustment and independent temporary head recentering.
+- Camera stream reused by Actor monitor; local low-DPR Nord monitor remains live
+  independently of the audience window while Actor is visible (about 30 fps).
+- Eight timed expression surface performances: anger spikes, joy lobes, sadness
+  droop, fear shiver, curiosity ripples, thinking swirl, listening pulse, calm.
+  Strength adjustable from 0 to 150%; smooth return to live tracking.
+- Wider speech mouth, restrained vertical opening, lower jaw travel and full
+  extinction on closure. All features remain real mesh geometry inside glass.
+- Independent star palettes/custom colors, optional following, hue/saturation,
+  color drift, spread, softness, twinkle rate and background tint. Full appearance
+  preset persistence, export/import, reset and undo.
+- Continued 1.15 surface finish, tension, breathing, iridescence, animated palette,
+  ribbon drift/width/light, light pulse and voice color controls.
+
+Previous validation record follows for historical context.
+---------------------------------------------------------
+
+Nord desktop 1.14.2 — minimal Actor desk and timed tracking layers
+
+UI
+- Two primary tabs: Actor and Settings. Actor has eight large expression buttons
+  and four gestures, with no device, optics, calibration or cue-edit controls.
+- Settings groups Inputs & actions, Appearance and Show cues. Next cue is placed
+  beside the cue sequence. Only quiet Freeze and Blackout controls remain global.
+- Removed decorative button, navigation and panel outlines. Keyboard focus uses
+  a background/text change instead. Existing appearance controls remain present.
+
+Action behavior
+- Runtime action layers default to four seconds; Settings chooses three to five
+  seconds and Blend or Override. They do not overwrite the resting expression,
+  cue state or live tracking coefficients. Timers use a clock independent of
+  animation freeze and ease in/out before returning to the current live pose.
+- Tracked speech and natural blinks continue under expression actions. An explicit
+  Smile/Frown can reveal a short-lived mouth aperture without opening it at rest.
+- Nod, Look left/right and Close eyes use the same timed layer. Close eyes reaches
+  full extinction even in Blend mode. Head offsets do not accumulate between
+  frames. Actor expression actions can play over a held base pose.
+- Release action / Escape eases out early. Number keys 1–8 trigger the same
+  temporary expressions, including when an action button has keyboard focus.
+- Output receives local action packets; reconnects resume only remaining time,
+  duplicate packets cannot restart actions, and expired actions do not replay.
+
+Checks
+- All nine check scripts pass: offline routing/syntax, transport, geometry,
+  postprocessing, performance/failsafe, appearance parameters, Appearance UI,
+  glass optics and Actor actions.
+- New checks cover duration bounds, hold/release timing, mode strength, reconnect,
+  duplicate/expired packets, head tracking opposition, full eye closure, preserved
+  articulation, nonmutation of tracked values and minimal Actor HTML structure.
+- Native 1.14.0: Actor and Settings layouts inspected; Smile visibly changes eyes
+  and mouth in the audience output, expires and returns to Ready. Close eyes
+  removes both eyes and glow. Escape releases a temporary action while frozen;
+  normal motion restored. Resting Frown and all appearance settings retained.
+- No live webcam test requested; tracking blend is verified with mapped face
+  fixtures. Windows and Intel Mac have not been exercised.
+- 1.14.1 layout moves the cue runner into Settings and unifies heading type.
+- Native 1.14.1: duration endpoints 3/5 and Blend/Override menus verified; restored
+  4 seconds and Blend. Cue runner is accessible in Settings.
+- 1.14.2 removes remaining cue-row, dropdown, import and status badge borders.
+
+Packaging
+- Apple silicon DMG/app ZIP and offline source kit refreshed. Mac .command and
+  shell plus Windows .cmd/.ps1 launchers retained. Runtime requires no connection;
+  the first source build still downloads pinned build tools. Builds are unsigned.
+
+Earlier audit history
+---------------------
+Nord desktop 1.13.0 — glass refraction and central reflection repair
+
+Root causes isolated
+- The former ray path ended on an almost-touching inner sphere and then reduced
+  the facial lens strength by 88 percent, making the eyes nearly unrefracted.
+- An inner-sphere miss used a different UV fallback near the rim.
+- Mirrored flare ghosts produced enlarged blurred eye copies below the face.
+- The studio environment could create a thin central mark at high reflection.
+
+Repair
+- Added bounded 3D optical travel through a smoothly thickening meniscus. All
+  captured facial meshes and stars use the same refracted source. View incidence
+  controls the edge response, including when Nord turns.
+- Eyes and mouth sit slightly deeper inside the real shell; the inner color
+  volume does not write depth over them at strong deformation.
+- Refraction zero retains the original view; liquid depth increases travel.
+- Nonmetallic studio reflection fades to zero over the central face. Mercury
+  retains its explicit metallic studio treatment.
+- Removed reflected-image flare ghosts. Chromatic streaks and source-aligned
+  scatter remain controlled by Lens flare.
+
+Validation
+- All eight check scripts pass, including the Appearance event-handler audit.
+- Numerical glass checks cover visible facial displacement, stronger rim bending,
+  ray containment, continuity across the former miss boundary, depth response,
+  straight-ray projection and RGB spectral separation.
+- Face containment checks include the revised radius at maximum deformation.
+- Native 1.13.0: inspected at the user's original settings, then compared 0 and
+  100 percent refraction on a frozen pose with 100 percent glass reflection.
+  Facial geometry changes optically; the star image bends strongly near the rim.
+  The former enlarged eye copies and center strip are absent.
+- Native diagnostics contain no shader errors. Runtime ASAR files match source.
+- Original reflection 56 percent and refraction 84 percent restored, motion
+  resumed, and the user's Listening role retained. No live camera test performed.
+- Apple silicon DMG and app ZIP rebuilt. Source build ZIP refreshed with the
+  offline runtime and Mac/Windows build scripts. Windows remains untested.
+
+Earlier audit history
+---------------------
+Nord desktop 1.12.1 — full Appearance control audit
+
+Current changes
+- Grouped Appearance into consistent Shape/Glass/Depth, Flow/Voice,
+  Color/Emission/Optics and Star/Size/Movement panels.
+- Material selection now preserves colors, optics, quality and motion.
+- Removed overwritten glass calculations. Depth affects every glass model;
+  reflection reaches zero, and Companion has its own satin optical response.
+- Added edge softness, feature softness and halo spread; brighter flowing
+  Luminous ribbons, softer Fresnel emission and a smooth voice-halo envelope.
+- Increased the star-motion range; zero still stops drift.
+- Character size remains editable while the pose is frozen.
+- Section reset and 24-step appearance undo; contextual feedback for frozen
+  motion or hidden stars. Presets include all new appearance parameters.
+
+Automated checks passed
+- Syntax, bundled offline assets and local-only asset routing.
+- Controller/output state, mic, tracking and gesture transport.
+- Curved facial geometry containment, full closure and zero closed emission.
+- Full-resolution linear HDR optics, cleared buffers and resource disposal.
+- Face-expression amplification, failsafe grace/recovery and jitter handling.
+- Voice-fluid attack/release, independent voice-halo settling and freeze.
+- Every Appearance parameter range and renderer mapping, shared/custom colors,
+  star sizes/count/depth/drift, native resolution and preset persistence.
+- Real Appearance event handlers with a DOM fixture: every slider endpoint,
+  material isolation, custom hex input, coupled star min/max sizes, section
+  reset/undo, save/load/delete/restore, appearance import and export.
+
+Native Mac UI checks on 1.12.0 (1.12.1 corrects status wording only)
+- Surface and Color & light layouts fit the controller window.
+- Native input changes reflection, refraction, dispersion, ripples, depth,
+  deformation, size, edge/feature softness, flow and voice response readouts.
+- Audience render responds to material/palette changes and independent emission,
+  bloom, flare and halo spread. Star count zero visibly removes every star.
+- Reset Stars restores all nine defaults; Undo restores previous values.
+- Named appearance save/load restores all changed sections. Original appearance
+  restored and temporary audit preset deleted. No user presets removed.
+- Graphics diagnostics contain no shader compilation/rendering errors.
+
+Distribution
+- Apple silicon Mac DMG and app ZIP built; final runtime checked against source.
+- Source kit contains pinned build tools, offline runtime/model and Mac .command
+  plus shell and Windows .cmd/.ps1 launchers.
+- Native Windows and Intel Mac have not been exercised.
+- Live actor-camera failsafe rehearsal skipped at the user's request.
+- Runtime is offline. First source build needs internet. Builds are unsigned.
+- No numerical visual-quality score is asserted.
+
+Previous audit details
+----------------------
+MOTE Stage desktop 1.11.1 — appearance audit and expanded controls
+
+Repaired Luminous controls that previously ignored palette, manual deformation,
+reflection and parts of depth. A shared live palette now drives glass, halo and
+HDR stars. Added custom color values, hue, saturation, brightness and emission.
+Expanded motion controls: speed, scale, curl, direction and audio response.
+Expanded stars: 0–6000 particles, minimum/maximum random size, motion, direction,
+depth, twinkle, brightness and emission.
+
+Appearance has five compact sections and local named preset save/update/load,
+delete/undo, persistence and appearance-file export/import. Appearance presets
+do not change live camera, tracking, microphone or blackout state. Show import
+also restores the supported appearance and performance settings.
+
+Refraction now intersects rays with the curved interior, with three spectral
+indices; removed the extra outer rim that extended beyond the glass. TV power
+transitions apply chromatic separation to the actual image, preserving its
+colors through the line and dot. The background voice halo is occluded by the
+glass. Lens flare uses broad ghost sources and filtered chromatic streaks.
+
+Other repairs: separate native controller/output focus and reuse, visible app
+version, distinct rendering-quality levels, proper yaw/pitch operator gestures,
+operator blink with webcam override, and frozen pose preservation.
+
+Passed checks: syntax/offline routing, transport, vertex containment, closure,
+tracking failsafe timing, audio-fluid settling, HDR framebuffer lifecycle, every
+appearance control range, custom/shared palettes, star uniforms and draw counts,
+native resolution, gestures, and preset persistence/update/delete/undo. Native
+UI verified: live Aurora/Prism render changes, colored star glow, clear dark
+glass, and appearance save/load/delete. The temporary test preset was removed.
+Center refraction was reduced after inspecting the high-deformation case.
+A tracking-loss rehearsal button now exercises the live failsafe path.
+
+Not verified on native Windows or Intel Mac. The actor's live camera and
+projector still require rehearsal. No numerical visual score is claimed.
+Runtime is offline; first source build needs internet. Builds are unsigned.

@@ -1,0 +1,64 @@
+{
+  "name": "mote-stage-desktop",
+  "version": "1.20.0",
+  "private": true,
+  "description": "Offline theater avatar with microphone and webcam puppetry",
+  "author": "MOTE Stage",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "node scripts/check.mjs && node checks/stage-link.mjs && node checks/face-geometry.mjs && node checks/post-processing.mjs && node checks/performance.mjs && node checks/appearance.mjs && node checks/appearance-ui.mjs && node checks/glass-optics.mjs && node checks/actor-actions.mjs && node checks/surface-animation.mjs && node checks/mouth-pose.mjs && node checks/actor-calibration.mjs && node checks/calibration-ui.mjs && node checks/head-motion.mjs && node checks/action-surface.mjs && node checks/background.mjs && node checks/glass-frosting.mjs && node checks/media-input.mjs && node checks/action-body.mjs && node checks/character-performance.mjs && node checks/surface-frame.mjs && node checks/facial-animation.mjs && node checks/show-clock.mjs",
+    "build:mac": "npm run check && electron-builder --mac dmg zip --publish never",
+    "build:win": "npm run check && electron-builder --win nsis --x64 --publish never",
+    "pack:mac": "npm run check && electron-builder --mac --dir --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.3.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "theater.mote.stage",
+    "productName": "MOTE Stage",
+    "executableName": "MOTE Stage",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**",
+      "web/**",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "extendInfo": {
+        "NSCameraUsageDescription": "Animate the avatar using local webcam head and face tracking.",
+        "NSMicrophoneUsageDescription": "Animate the avatar using local microphone input."
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "MOTE-Stage-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "MOTE Stage"
+    }
+  },
+  "type": "module"
+}

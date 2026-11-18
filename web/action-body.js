@@ -1,0 +1,84 @@
+// Coherent whole-body silhouettes, layered separately from the established
+// angry spikes and afraid shiver. Every shape is a deformed three-dimensional mesh.
+const finite=(v,f=0)=>{try{const n=Number(v);return Number.isFinite(n)?n:f;}catch{return f;}};
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,finite(v)));
+const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
+const zero=()=>({shape:[0,0,0,0],body:[0,0,0,0],time:0,face:0,dots:[0,0,0],dotX:[0,0,0]});
+export const ACTION_BODY_HINTS={neutral:'Settle into a smooth sphere',curious:'An inquisitive, turning teardrop',joy:'A rounded five-point star with restrained motion',angry:'Spikes rise around the glass',sad:'A soft cushion settling into a frown',afraid:'A nervous shiver through the glass',thinking:'Rounded square → triangle → sphere, with animated thinking dots',listening:'A round body with gentle listening ripples'};
+export function actionBodyPose(action,amount=1){
+  if(action?.kind!=='expression'||!Object.hasOwn(ACTION_BODY_HINTS,action.name))return zero();
+  const elapsed=Math.max(0,finite(action.elapsed)),duration=Math.max(1,finite(action.duration,4000));
+  if(elapsed>=duration||(action.remaining!==undefined&&finite(action.remaining)<=0))return zero();
+  const envelope=clamp(finite(action.weight)/(action.mode==='blend'?.86:1));
+  if(!envelope)return zero();
+  const out=zero(),p=elapsed/duration;out.time=elapsed/1000;
+  const w=envelope*clamp(amount,0,1.5);
+  if(action.name==='thinking'){
+    out.shape[0]=w*smooth(.04,.17,p)*(1-smooth(.34,.55,p));
+    out.shape[1]=w*smooth(.34,.55,p)*(1-smooth(.73,.94,p));
+    // Facial replacement is an explicit part of Thinking, including when the
+    // optional body strength is zero. Normalize the blend envelope to fully hide
+    // tracked eyes and speech, then restore them through the same release.
+    out.face=envelope;
+    const phase=(out.time%1.2)/1.2;
+    out.dots=[1,smooth(.27,.34,phase),smooth(.59,.66,phase)];
+    const reset=1-smooth(.88,1,phase);
+    out.dots[1]*=reset;out.dots[2]*=reset;
+    const center=(out.dots[1]+2*out.dots[2])/(1+out.dots[1]+out.dots[2]);
+    out.dotX=out.dots.map((_,i)=>(i-center)*.17);
+  }else if(action.name==='joy')out.shape[2]=w;
+  else if(action.name==='sad')out.shape[3]=w;
+  else if(action.name==='curious')out.body[0]=w;
+  else if(action.name==='listening')out.body[1]=w;
+  return out;
+}
+export const actionBodyGLSL=/* glsl */`
+  uniform vec4 uActionShape,uActionBody;
+  uniform float uActionBodyTime;
+  float actionBodyDisplacement(vec3 p){
+    if(dot(abs(uActionShape),vec4(1.))+dot(abs(uActionBody),vec4(1.))<.000001)return 0.;
+    float radial=length(p.xy);
+    vec2 q=p.xy/max(radial,1.e-6);
+    // Keep the forward optical window and facial volumes clear while reshaping
+    // the complete silhouette and curved sides, front and back.
+    float rim=pow(radial,8.);
+    float square=.91/pow(max(1.e-6,pow(abs(q.x),8.)+pow(abs(q.y),8.)),.125);
+    float a=max(0.,dot(q,vec2(.8660254,.5)));
+    float b=max(0.,dot(q,vec2(-.8660254,.5)));
+    float c=max(0.,-q.y);
+    float triangle=.69/pow(max(1.e-6,pow(a,12.)+pow(b,12.)+pow(c,12.)),1./12.);
+    float t=uActionBodyTime;
+    float angle=atan(q.y,q.x+1.e-7);
+    // Polar ray/edge intersection of a five-point star. Slightly softening the
+    // folded angle rounds the tips without turning the arms into flower lobes.
+    float folded=acos(clamp(cos((angle-1.5707963+sin(t*.9)*.018)*5.)*.995,-1.,1.))/5.;
+    float outer=1.27,inner=.72,corner=.62831853;
+    float star=outer*inner*sin(corner)/(inner*sin(corner)*cos(folded)+(outer-inner*cos(corner))*sin(folded));
+    float cushion=.95/pow(max(1.e-6,pow(abs(q.x)/1.10,6.)+pow(abs(q.y)/.88,6.)),1./6.);
+    float sad=cushion-1.+.045*max(0.,-q.y);
+    float focus=dot(q,normalize(vec2(sin(t*.8)*.65,.9)));
+    float curious=.22*focus*focus*focus+.045;
+    float listening=.060*pow(abs(q.x),6.)*(.5+.5*sin(t*4.-abs(q.y)*9.));
+    return rim*(uActionShape.x*(square-1.)+uActionShape.y*(triangle-1.)
+      +uActionShape.z*(star-1.)+uActionShape.w*sad
+      +uActionBody.x*curious+uActionBody.y*listening);
+  }
+`;
+// CPU reference mirrors the GLSL for optical containment and shape timing checks.
+export function actionBodyDisplacement(position,pose=zero()){
+  let [x,y,z]=(Array.isArray(position)?position:[position?.x,position?.y,position?.z]).map(v=>finite(v));
+  const n=Math.hypot(x,y,z)||1;x/=n;y/=n;z/=n;
+  const r=Math.hypot(x,y),qx=x/Math.max(r,1e-6),qy=y/Math.max(r,1e-6),rim=r**8;
+  const [square,triangle,joy,sad]=(pose?.shape||[]).map(v=>clamp(v,0,1.5));
+  const [curious,listening]=(pose?.body||[]).map(v=>clamp(v,0,1.5));const t=finite(pose?.time);
+  const sq=.91/Math.max(1e-6,Math.abs(qx)**8+Math.abs(qy)**8)**.125;
+  const a=Math.max(0,.8660254*qx+.5*qy),b=Math.max(0,-.8660254*qx+.5*qy),c=Math.max(0,-qy);
+  const tri=.69/Math.max(1e-6,a**12+b**12+c**12)**(1/12);
+  const angle=Math.atan2(qy,qx+1e-7),folded=Math.acos(Math.max(-1,Math.min(1,Math.cos((angle-Math.PI/2+Math.sin(t*.9)*.018)*5)*.995)))/5;
+  const outer=1.27,inner=.72,corner=Math.PI/5;
+  const star=outer*inner*Math.sin(corner)/(inner*Math.sin(corner)*Math.cos(folded)+(outer-inner*Math.cos(corner))*Math.sin(folded));
+  const cushion=.95/Math.max(1e-6,(Math.abs(qx)/1.10)**6+(Math.abs(qy)/.88)**6)**(1/6);
+  const fx=Math.sin(t*.8)*.65,focus=(qx*fx+qy*.9)/Math.hypot(fx,.9);
+  const listen=.060*Math.abs(qx)**6*(.5+.5*Math.sin(t*4-Math.abs(qy)*9));
+  return rim*((square||0)*(sq-1)+(triangle||0)*(tri-1)+(joy||0)*(star-1)+(sad||0)*(cushion-1+.045*Math.max(0,-qy))+(curious||0)*(.22*focus**3+.045)+(listening||0)*listen);
+}
