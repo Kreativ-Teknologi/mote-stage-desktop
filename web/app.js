@@ -18,6 +18,8 @@ import './orb-renderer.js';
   const STATE_KEY = 'mote-stage-state-v1';
   const CUES_KEY = 'mote-stage-cues-v1';
   const ASSET_DB = 'mote-stage-art-v1';
+  const DEFAULT_BLACKOUT_KEY_COLOR = '#00ff00';
+  const validBlackoutKeyColor = value => typeof value==='string' && /^#[0-9a-f]{6}$/i.test(value);
   const MOODS = ['neutral','curious','joy','angry','sad','afraid','thinking','listening'];
   const SCENES = ['aether','ember','dawn','void'];
   const ROLES = ['speaker','listener'];
@@ -34,7 +36,7 @@ import './orb-renderer.js';
     actorActionDuration:4,actorActionMode:'blend',actionSurface:1,freeHeadMovement:false,headMovement:1,audioFluid:true,faceStrength:1.8,trackingFailsafe:true,trackingBlackout:false,look:'luminous',expressionMode:'manual',emotion:'neutral',scene:'aether',role:'speaker',intensity:.95,sensitivity:1.8,gate:.018,
     facePresence:.92,fluidMotion:.35,orbSize:.72,renderQuality:1.3,surfaceDeformation:0,glassDepth:.40,
     voiceHalo:.7,starField:.35,bloomStrength:.48,flareStrength:.18,edgeGlow:.7,refraction:.40,dispersion:.12,internalDepth:.25,surfaceRipples:.10,
-    voiceReactive:true,freeze:false,blackout:false,showName:false,name:'Nord',
+    voiceReactive:true,freeze:false,blackout:false,blackoutKeyEnabled:false,blackoutKeyColor:DEFAULT_BLACKOUT_KEY_COLOR,showName:false,name:'Nord',
     activeCue:0,mouthX:50,mouthY:59,mouthScale:20
   };
   const safeLoad = (key,fallback) => {
@@ -169,16 +171,20 @@ import './orb-renderer.js';
     const surface=id('stageSurface');
     surface.dataset.scene=SCENES.includes(state.scene)?state.scene:'aether';
     const black=!!(state.blackout||state.trackingBlackout);
+    const keyColor=validBlackoutKeyColor(state.blackoutKeyColor)?state.blackoutKeyColor:DEFAULT_BLACKOUT_KEY_COLOR;
     for(const powerSurface of [surface,...(!STAGE_MODE?[id('actorStageSurface')]:[])]){
-    if(powerSurface.dataset.power!==String(black)){
-      const surface=powerSurface;
-      const initialized=surface.dataset.power!==undefined;
-      surface.dataset.power=String(black);
-      surface.classList.toggle('blackout',black);
-      surface.classList.remove('tv-off','tv-on');
-      void surface.offsetWidth;
-      if(initialized){powerTransitionAt=performance.now();surface.classList.add(black?'tv-off':'tv-on');}
-    }
+      powerSurface.classList.toggle('keyed-blackout',state.blackoutKeyEnabled===true);
+      powerSurface.style.setProperty('--blackout-key-color',keyColor);
+      if(powerSurface.dataset.power===String(black))continue;
+      const initialized=powerSurface.dataset.power!==undefined;
+      powerSurface.dataset.power=String(black);
+      powerSurface.classList.toggle('blackout',black);
+      powerSurface.classList.remove('tv-off','tv-on');
+      if(initialized){
+        void powerSurface.offsetWidth;
+        powerTransitionAt=performance.now();
+        powerSurface.classList.add(black?'tv-off':'tv-on');
+      }
     }
     id('stageName').textContent=state.name||'Nord';
     id('stageFooter').style.display=state.showName?'flex':'none';
@@ -194,6 +200,8 @@ import './orb-renderer.js';
 
   function updateConsole(){
     if(STAGE_MODE)return;
+    id('blackoutKeyEnabled').checked=state.blackoutKeyEnabled===true;
+    id('blackoutKeyColor').value=validBlackoutKeyColor(state.blackoutKeyColor)?state.blackoutKeyColor:DEFAULT_BLACKOUT_KEY_COLOR;
     id('baseEmotion').value=state.emotion;
     id('actorActionDuration').value=state.actorActionDuration||4;id('actorActionDurationOutput').textContent=(state.actorActionDuration||4)+' s';
     id('actorActionMode').value=state.actorActionMode||'blend';
@@ -406,6 +414,8 @@ import './orb-renderer.js';
     id('testAnimation').addEventListener('click',()=>{demoUntil=performance.now()+4300;notify('Running a four-second voice animation test.');});
     id('freezeButton').addEventListener('click',()=>setState({freeze:!state.freeze}));
     id('blackoutButton').addEventListener('click',()=>setState({blackout:!state.blackout}));
+    id('blackoutKeyEnabled').addEventListener('change',e=>setState({blackoutKeyEnabled:e.target.checked}));
+    id('blackoutKeyColor').addEventListener('input',e=>setState({blackoutKeyColor:e.target.value}));
     id('resetButton').addEventListener('click',()=>{releaseActorAction();setState({emotion:'neutral',scene:'ember',freeze:false,blackout:false,activeCue:-1});});
     id('addCue').addEventListener('click',()=>{if(cues.length>=50){notify('50 cues maximum.');return;}cues.push({title:'New cue '+(cues.length+1),emotion:state.emotion,scene:state.scene,role:state.role});persistCues();renderCues();});
     id('resetCues').addEventListener('click',()=>{cues=structuredClone(defaultCues);state.activeCue=0;persistCues();renderCues();takeCue(0);notify('Demo cues restored.');});
@@ -455,6 +465,8 @@ import './orb-renderer.js';
         if(['manual','auto'].includes(saved.expressionMode))state.expressionMode=saved.expressionMode;
         if(typeof saved.audioFluid==='boolean')state.audioFluid=saved.audioFluid;
         if(typeof saved.trackingFailsafe==='boolean')state.trackingFailsafe=saved.trackingFailsafe;
+        if(typeof saved.blackoutKeyEnabled==='boolean')state.blackoutKeyEnabled=saved.blackoutKeyEnabled;
+        if(validBlackoutKeyColor(saved.blackoutKeyColor))state.blackoutKeyColor=saved.blackoutKeyColor;
         if(['ethereal','mercury','companion','luminous'].includes(saved.look))state.look=saved.look;
         state.activeCue=-1;persistCues();renderCues();broadcastState();
         notify('Show loaded: '+cues.length+' cues.');

@@ -288,6 +288,21 @@ body[data-tab=settings][data-settings=profiles] .desk-panels{grid-template-colum
 
 .actor-monitor.blackout .blackout-mask{opacity:1}.actor-monitor.tv-off>.crt-picture{animation:crt-picture-off .85s cubic-bezier(.4,0,.2,1) both}.actor-monitor.tv-on>.crt-picture{animation:crt-picture-on .85s cubic-bezier(.4,0,.2,1) both}.actor-monitor.tv-off .blackout-mask{animation:crt-mask-off .85s both}.actor-monitor.tv-on .blackout-mask{animation:crt-mask-on .85s both}
 
+body[data-tab=settings][data-settings=output] .desk-panels{grid-template-columns:1fr;grid-template-rows:auto auto}
+body[data-tab=settings][data-settings=output] [data-panel=output]{display:block}
+.blackout-color{display:flex;align-items:center;gap:12px;font-size:11px;color:#bacfd0}
+.blackout-color input{width:36px;height:28px;padding:0;border:0;background:transparent}
+
+/* Keep the key color beneath the picture so each edge of the squeeze reveals it. */
+.stage-surface.keyed-blackout>.blackout-mask,.actor-monitor.keyed-blackout>.blackout-mask{
+  z-index:0;opacity:1;background:var(--blackout-key-color,#00ff00);animation:none;transition:none
+}
+.keyed-blackout>.crt-picture{z-index:1;background:#000}
+.keyed-blackout.blackout>.crt-picture{opacity:0}
+@media(prefers-reduced-motion:reduce){
+  .actor-monitor.keyed-blackout>.crt-picture{animation:none}
+}
+
 body[data-appearance=starcolor] [data-appearance-panel=starcolor]{display:block}.star-color-fields{display:grid;gap:8px;margin-top:14px}.star-color-fields .shader-color,.background-color{display:grid;grid-template-columns:40px 34px 1fr;align-items:center;gap:8px;padding:9px}.star-color-fields input[type=color],.background-color input[type=color]{width:30px;height:27px;padding:0;border:0;background:transparent}.star-color-fields input[type=text],.background-color input[type=text]{min-width:0;width:100%;box-sizing:border-box;font:11px ui-monospace,monospace;color:#bcd4c7;background:transparent;border:0;outline:0;padding:4px}.appearance-group>select{margin-top:7px}.appearance-tabs{gap:5px}.appearance-tabs>button{padding-left:11px;padding-right:11px}
 
 .profile-camera h2{font-family:inherit;font-size:16px;font-weight:500}.profile-camera video{height:90px;max-height:90px!important}.profile-camera .check-line{margin:8px 0}.profile-camera .control-pair{margin:7px 0}.profile-camera .helper-copy{margin:6px 0!important}.profile-face-options{margin-top:15px}.profile-face-options .check-line{font-size:11px}.profile-face-options .control-pair{margin-top:16px}.profile-intro h2{font-size:21px}.profile-columns{margin-top:14px}

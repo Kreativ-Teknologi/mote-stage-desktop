@@ -53,6 +53,7 @@ On Windows x64 with [NDI Tools](https://ndi.video/tools/) installed, click **Sta
 - **Open stage view** creates a second native window showing only the avatar on black. Drag it to the projector. Settings, cues, artwork, mic motion, webcam tracking, gestures, and blackout synchronize locally.
 - Press **F** or double-click the stage output for fullscreen. **F11** toggles native fullscreen; **Escape** leaves it.
 - **B** toggles the TV squeeze blackout. **X** freezes motion. Keys **1–8** select expressions; **Space** advances cues while focus is outside a control.
+- In **Settings → Output**, enable **Reveal key color during blackout** and choose a color. The TV squeeze reveals the solid color in the audience window and NDI feed. Green is the default key color.
 - Export a show JSON to back up cues and appearance. Uploaded character artwork is stored separately in local app storage, so keep your original images too.
 - Quit the controller to close the entire app, release the camera/microphone, and stop the display-sleep prevention used during a show.
 
