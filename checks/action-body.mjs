@@ -32,6 +32,11 @@ const tip=[0,1,0],valley=[Math.cos(Math.PI/2+Math.PI/5),Math.sin(Math.PI/2+Math.
 assert.ok(actionBodyDisplacement(tip,joy)-actionBodyDisplacement(valley,joy)>.40,'Smile has five clear star points and deep valleys');
 const projected=angle=>{let maximum=0;for(let i=0;i<=300;i++){const r=i/300,z=Math.sqrt(1-r*r);maximum=Math.max(maximum,r*(1+actionBodyDisplacement([r*Math.cos(angle),r*Math.sin(angle),z],joy)));}return maximum;};
 assert.ok(projected(Math.PI/2)-projected(Math.PI/2+Math.PI/5)>.38,'The front and back of the real 3D body do not fill the star valleys in projection');
-const listen=actionBodyPose(action('listening'));for(const p of points)assert.ok(actionBodyDisplacement(p,listen)>=0&&actionBodyDisplacement(p,listen)<.061,'Listening preserves the round core instead of flattening it');
+const listen=actionBodyPose(action('listening'));
+for(const side of [-1,1]){
+  const samples=Array.from({length:40},(_,index)=>actionBodyDisplacement([side,0,0],{...listen,time:index*.05}));
+  assert.ok(Math.min(...samples)<-.15&&Math.max(...samples)>.15,'Both sides have deep troughs and visible crests');
+}
+assert.equal(actionBodyDisplacement([0,1,0],listen),0,'Listening leaves the top of the orb round');
 for(const bad of [undefined,{},[NaN,Infinity,0],[0,0,0],[Symbol(),null,'bad']])assert.ok(Number.isFinite(actionBodyDisplacement(bad,square)));
 console.log('Verified whole-body morph sequence, preserved anger/fear, smooth shape bounds, optical front clearance, timed facial replacement and centered animated dots.');

@@ -38,7 +38,8 @@
       "identity": null,
       "extendInfo": {
         "NSCameraUsageDescription": "Animate the avatar using local webcam head and face tracking.",
-        "NSMicrophoneUsageDescription": "Animate the avatar using local microphone input."
+        "NSMicrophoneUsageDescription": "Animate the avatar using local microphone input.",
+        "NSLocalNetworkUsageDescription": "Send the audience video to NDI receivers on your local network when NDI output is enabled."
       }
     },
     "win": {

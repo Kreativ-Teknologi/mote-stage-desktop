@@ -42,7 +42,7 @@ The default Luminous look follows a soft pastel glowing-orb direction: a uniform
 
 The controller opens maximized as a normal resizable window on Actor, with a separate Settings tab for input, appearance, and cue setup. The avatar opens automatically in a separate native window. Two large 16:9 local monitors below the Actor buttons show the camera and a lightweight live Nord view, even when the separate stage window is elsewhere. The projector keeps its own full-quality renderer. Blackout collapses one picture plane into a centered phosphor beam. Resting expressions keep the mouth closed until voice or webcam jaw input opens it.
 
-On Windows x64 with [NDI Tools](https://ndi.video/tools/) installed, click **Start NDI** beside **Open avatar window**. Select **MOTE Stage** under your computer's name in NDI Studio Monitor or another NDI receiver. The source carries the audience window's video at up to 30 fps and fits within 1920 × 1080 while keeping the window's aspect ratio. Click **Stop NDI** or close the audience window to end the feed. NDI starts off each time you launch the app.
+On Windows x64 with [NDI Tools](https://ndi.video/tools/) installed, or on Apple silicon and Intel Macs with the [NDI Runtime for macOS](https://ndi.link/NDIRedistV6) installed, click **Start NDI** beside **Open avatar window**. On macOS, allow local network access if prompted. Select **MOTE Stage** under your computer's name in an NDI receiver such as NDI Video Monitor on Mac or Studio Monitor on Windows. The source carries the audience window's video at up to 30 fps and fits within 1920 × 1080 while keeping the window's aspect ratio. Click **Stop NDI** or close the audience window to end the feed. NDI starts off each time you launch the app.
 
 In **Settings → Output → NDI frame size**, enable the custom width and height, enter even pixel dimensions up to 3840 × 2160, and click **Apply size**. The new size takes effect during an active NDI feed. The picture fits inside the selected frame without stretching, and the preference is saved on this computer.
 
@@ -300,3 +300,8 @@ Look left and Look right let the eyes lead the head by a small amount, then retu
 ## Continuous performance in 1.20
 
 Switching actions keeps procedural surface motion moving forward. The controller and audience output share a transient show clock, including when the output is reopened or the Actor preview has been hidden. Thinking hands its white face volumes over to the loading dots through a short blink, preventing overlapping faces. Repeating Thinking keeps the normal eyes hidden until the action releases.
+## Bubbles performance actions
+
+The Actor shape rail holds **Circle**, **Triangle**, **Square**, or **Star** until you select another shape. Assign optional shortcuts under **Emote Layout → Shape keys**. Emotes and shapes share shortcut conflict checks.
+
+**Flirting (9)** adds a one-eye wink, a smile, and floating hearts behind Bubbles. **Pop (0)** bursts the glass into droplets while the live face stays visible; the shell starts reforming after about two seconds. Both actions travel to the audience window with the other Actor controls.

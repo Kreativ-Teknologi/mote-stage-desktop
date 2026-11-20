@@ -1,7 +1,7 @@
 import {normalizeBackground} from './background-settings.js';
 const number=(v,fallback,min=0,max=1)=>{const n=Number(v);return Number.isFinite(n)?Math.min(max,Math.max(min,n)):fallback;};
 export function getRenderSettings(s){
-  return {...normalizeBackground(s),style:({ethereal:0,mercury:1,companion:2,luminous:3}[s.look]??3),
+  return {...normalizeBackground(s),bodyForm:s.bodyForm,style:({ethereal:0,mercury:1,companion:2,luminous:3}[s.look]??3),
     palette:Math.max(0,['aether','ember','dawn','void'].indexOf(s.scene)),
     face:number(s.facePresence,.92),motion:number(s.fluidMotion,.55,0,2),size:number(s.orbSize,.72,.65,1.3),
     deform:number(s.surfaceDeformation,0),glass:number(s.glassDepth,.4),refraction:number(s.refraction,.4),

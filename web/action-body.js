@@ -4,9 +4,23 @@ const finite=(v,f=0)=>{try{const n=Number(v);return Number.isFinite(n)?n:f;}catc
 const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,finite(v)));
 const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a));return t*t*(3-2*t);};
 const zero=()=>({shape:[0,0,0,0],body:[0,0,0,0],time:0,face:0,dots:[0,0,0],dotX:[0,0,0]});
+export const BODY_FORMS=['round','triangle','square','star'];
+export const BODY_FORM_LABELS={round:'Circle',triangle:'Triangle',square:'Square',star:'Star'};
+export function createBodyForm(){
+  let square=0,triangle=0,star=0;
+  return (name,delta,action)=>{
+    const blend=1-Math.exp(-clamp(delta,0,.1)*12);
+    const approach=(value,target)=>Math.abs(target-value)<.0001?target:value+(target-value)*blend;
+    square=approach(square,name==='square'?1:0);
+    triangle=approach(triangle,name==='triangle'?1:0);
+    star=approach(star,name==='star'?1:0);
+    const remaining=1-clamp(action.shape.reduce((sum,value)=>sum+value,0)+(action.body[2]||0));
+    return {base:[square,triangle,star,0],shape:[action.shape[0]+square*remaining,action.shape[1]+triangle*remaining,action.shape[2]+star*remaining,action.shape[3]]};
+  };
+}
 export const ACTION_BODY_HINTS={neutral:'Settle into a smooth sphere',curious:'An inquisitive, turning teardrop',joy:'A rounded five-point star with restrained motion',angry:'Spikes rise around the glass',sad:'A soft cushion settling into a frown',afraid:'A nervous shiver through the glass',thinking:'Rounded square → triangle → sphere, with animated thinking dots',listening:'A round body with gentle listening ripples'};
 export function actionBodyPose(action,amount=1){
-  if(action?.kind!=='expression'||!Object.hasOwn(ACTION_BODY_HINTS,action.name))return zero();
+  if(action?.kind!=='expression'||(!Object.hasOwn(ACTION_BODY_HINTS,action.name)&&action.name!=='crystal'))return zero();
   const elapsed=Math.max(0,finite(action.elapsed)),duration=Math.max(1,finite(action.duration,4000));
   if(elapsed>=duration||(action.remaining!==undefined&&finite(action.remaining)<=0))return zero();
   const envelope=clamp(finite(action.weight)/(action.mode==='blend'?.86:1));
@@ -30,6 +44,7 @@ export function actionBodyPose(action,amount=1){
   else if(action.name==='sad')out.shape[3]=w;
   else if(action.name==='curious')out.body[0]=w;
   else if(action.name==='listening')out.body[1]=w;
+  else if(action.name==='crystal')out.body[2]=w;
   return out;
 }
 export const actionBodyGLSL=/* glsl */`
@@ -58,10 +73,12 @@ export const actionBodyGLSL=/* glsl */`
     float sad=cushion-1.+.045*max(0.,-q.y);
     float focus=dot(q,normalize(vec2(sin(t*.8)*.65,.9)));
     float curious=.22*focus*focus*focus+.045;
-    float listening=.060*pow(abs(q.x),6.)*(.5+.5*sin(t*4.-abs(q.y)*9.));
+    float listening=.17*pow(abs(q.x),6.)*sin(t*4.-q.y*10.+q.x*.6);
+    float facet=acos(clamp(cos((angle-1.5708)*6.)*.995,-1.,1.))/6.;
+    float crystal=.92/cos(facet)-1.+.13*pow(abs(q.y),5.);
     return rim*(uActionShape.x*(square-1.)+uActionShape.y*(triangle-1.)
       +uActionShape.z*(star-1.)+uActionShape.w*sad
-      +uActionBody.x*curious+uActionBody.y*listening);
+      +uActionBody.x*curious+uActionBody.y*listening+uActionBody.z*crystal);
   }
 `;
 // CPU reference mirrors the GLSL for optical containment and shape timing checks.
@@ -70,7 +87,7 @@ export function actionBodyDisplacement(position,pose=zero()){
   const n=Math.hypot(x,y,z)||1;x/=n;y/=n;z/=n;
   const r=Math.hypot(x,y),qx=x/Math.max(r,1e-6),qy=y/Math.max(r,1e-6),rim=r**8;
   const [square,triangle,joy,sad]=(pose?.shape||[]).map(v=>clamp(v,0,1.5));
-  const [curious,listening]=(pose?.body||[]).map(v=>clamp(v,0,1.5));const t=finite(pose?.time);
+  const [curious,listening,crystal]=(pose?.body||[]).map(v=>clamp(v,0,1.5));const t=finite(pose?.time);
   const sq=.91/Math.max(1e-6,Math.abs(qx)**8+Math.abs(qy)**8)**.125;
   const a=Math.max(0,.8660254*qx+.5*qy),b=Math.max(0,-.8660254*qx+.5*qy),c=Math.max(0,-qy);
   const tri=.69/Math.max(1e-6,a**12+b**12+c**12)**(1/12);
@@ -79,6 +96,8 @@ export function actionBodyDisplacement(position,pose=zero()){
   const star=outer*inner*Math.sin(corner)/(inner*Math.sin(corner)*Math.cos(folded)+(outer-inner*Math.cos(corner))*Math.sin(folded));
   const cushion=.95/Math.max(1e-6,(Math.abs(qx)/1.10)**6+(Math.abs(qy)/.88)**6)**(1/6);
   const fx=Math.sin(t*.8)*.65,focus=(qx*fx+qy*.9)/Math.hypot(fx,.9);
-  const listen=.060*Math.abs(qx)**6*(.5+.5*Math.sin(t*4-Math.abs(qy)*9));
-  return rim*((square||0)*(sq-1)+(triangle||0)*(tri-1)+(joy||0)*(star-1)+(sad||0)*(cushion-1+.045*Math.max(0,-qy))+(curious||0)*(.22*focus**3+.045)+(listening||0)*listen);
+  const listen=.17*Math.abs(qx)**6*Math.sin(t*4-qy*10+qx*.6);
+  const facet=Math.acos(Math.cos((angle-1.5708)*6)*.995)/6;
+  const cut=.92/Math.cos(facet)-1+.13*Math.abs(qy)**5;
+  return rim*((square||0)*(sq-1)+(triangle||0)*(tri-1)+(joy||0)*(star-1)+(sad||0)*(cushion-1+.045*Math.max(0,-qy))+(curious||0)*(.22*focus**3+.045)+(listening||0)*listen+(crystal||0)*cut);
 }

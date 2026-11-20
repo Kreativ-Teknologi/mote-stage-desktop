@@ -3,13 +3,13 @@ import {eyeContourCurve,createGazeDriver} from './facial-animation.js';
 import {createCharacterPerformance} from './character-performance.js';
 import {surfaceFrameGLSL} from './surface-frame.js';
 import {createStagePosition} from './head-motion.js';
-import {actionBodyGLSL} from './action-body.js';
+import {actionBodyGLSL,createBodyForm} from './action-body.js';
 import {createGlassFrosting} from './glass-frosting.js';
 import {starFieldOptions} from './background-settings.js';
 import {actionSurfaceGLSL} from './action-surface.js';
 import {speechMouthPose} from './mouth-pose.js';
 import {createSurfaceAnimation} from './surface-animation.js';
-import {ACTOR_EXPRESSIONS,ACTOR_APERTURES,blendActorEye,blendActorMouth} from './actor-actions.js';
+import {ACTOR_EXPRESSIONS,ACTOR_APERTURES,LIBRARY_EMOTES,blendActorEye,blendActorMouth,bubbleActionPose,libraryEmoteMotion,stageEffectPose,starActionPose,cometPath,COMET_EXIT} from './actor-actions.js';
 import {glassOpticsGLSL} from './glass-optics.js';
 import {renderScale} from './render-settings.js';
 import {createPaletteUniforms,applyPalette,paletteGLSL} from './palettes.js';
@@ -126,7 +126,7 @@ const noiseGLSL = /* glsl */`
 
 const coreFragment = /* glsl */`
   uniform float uFlowTime,uFlowScale,uFlowCurl,uFlowAngle;
-  uniform float uTime,uMotion,uLevel,uPalette,uDepth,uBass,uMid,uTreble,uStyle,uFace;
+  uniform float uTime,uMotion,uLevel,uPalette,uDepth,uBass,uMid,uTreble,uStyle,uFace,uShell;
   varying vec3 vLocal,vWorld,vNormalW;
   varying float vWarp;
   ${noiseGLSL}
@@ -183,14 +183,16 @@ const coreFragment = /* glsl */`
     c=vec3(.001,.002,.003)+c*.025*(1.-clearCenter*.95);
     if(uStyle>1.5)c*=vec3(1.25,1.,.82);
     vec3 behind=texture2D(uBackground,gl_FragCoord.xy/uResolution).rgb;
-    gl_FragColor=vec4(max(c,vec3(0.))+behind*.98,1.);
+    gl_FragColor=vec4(max(c,vec3(0.))*uShell+behind*mix(1.,.98,uShell),1.);
   }
 `;
 
 const shellFragment = /* glsl */`
-  uniform float uFlowTime,uFaceRadius,uFlowScale,uFlowCurl,uFlowAngle;
+  uniform float uFlowTime,uFaceRadius,uFlowScale,uFlowCurl,uFlowAngle,uShell,uPopFlash,uPopReform;
+  uniform vec4 uStageEffect;
+  uniform float uEffectTravel;
   uniform mat4 uWorldToLocal,uLocalToClip;uniform mat3 uWorldNormal;
-  uniform sampler2D uInner,uStudio,uFrostedInner;
+  uniform sampler2D uInner,uStudio,uFrostedInner,uBackground;
   uniform vec2 uResolution;
   uniform float uTime,uMotion,uLevel,uPalette,uGlass,uRefraction,uDispersion;
   uniform float uRipple,uDepth,uBass,uMid,uTreble,uStyle,uFace,uEdgeGlow,uEdgeSoftness,uSurfaceRoughness,uSurfaceFrosting,uIridescence,uRibbonPhase,uRibbonWidth,uRibbonIntensity;
@@ -297,7 +299,76 @@ const shellFragment = /* glsl */`
     float edgePower=mix(9.,2.8,uEdgeSoftness);
     float edgeEnergy=mix(1.65,.80,uEdgeSoftness);
     col+=edgeColor*pow(1.-nv,edgePower)*edgeEnergy*uEdgeGlow;
-    gl_FragColor=vec4(max(col,vec3(0.)),1.);
+    if(uStageEffect.z>.001){
+      float mode=uStageEffect.x,age=uStageEffect.y,weight=uStageEffect.z;
+      float rim=pow(1.-nv,2.1);
+      float travel=uEffectTravel;
+      float sweep=vLocal.y+.38*vLocal.x-travel;
+      vec3 spectrum=.52+.48*cos(6.28318*(vLocal.y*.42+vLocal.x*.18-age*.52+vec3(0.,.67,.33)));
+      if(mode==2.)col=mix(col,col*.62+spectrum*(.72+rim*.65),exp(-sweep*sweep*3.7)*weight*.74);
+      if(mode==4.){
+        float lead=(vLocal.y+.15*vLocal.x)-(-1.25+age*1.95);
+        float follow=lead+.64;
+        col+=paletteColor(.65)*(exp(-lead*lead*65.)+.64*exp(-follow*follow*75.))*(.24+rim*.92)*weight;
+      }
+      if(mode==5.){
+        float arc=vLocal.x+.23*vLocal.y*vLocal.y-travel;
+        float shadow=smoothstep(-.38,-.08,arc)*(1.-smoothstep(.25,.65,arc));
+        vec3 clearFace=texture2D(uInner,uv).rgb;
+        col=mix(col,clearFace*.91,shadow*weight*.82);
+        col+=vec3(1.,.48,.13)*rim*exp(-arc*arc*24.)*weight*.87;
+      }
+      if(mode==6.)col+=spectrum*rim*weight*(.22+.35*pow(.5+.5*sin(age*8.+vLocal.y*10.),4.));
+      if(mode==7.){
+        float split=.025+.29*sin((travel*.5+.5)*3.14159);
+        vec3 distanceToBand=vec3(vLocal.x-.35*vLocal.y-travel*.94)+vec3(-split,0.,split);
+        col+=exp(-distanceToBand*distanceToBand*34.)*vec3(.70,.64,.94)*weight*(.26+rim*.61);
+      }
+      if(mode==8.)col+=vec3(1.,.17,.37)*(.17+rim*.92)*uStageEffect.w;
+      if(mode==9.)col+=vec3(.27,.52,.89)*rim*weight*.31;
+      if(mode==10.)col+=paletteColor(.18)*rim*weight*.34*smoothstep(-.15,.85,-vLocal.y);
+      if(mode==11.){
+        float curtain=vLocal.y-.31*sin(vLocal.x*4.8+age*1.85)-travel*.53;
+        float fold=sin(29.*vLocal.x+5.*sin(vLocal.y*3.+age));
+        float filaments=exp(-curtain*curtain*16.)*(.5+.5*fold);
+        vec3 aurora=mix(vec3(.12,1.65,1.19),vec3(.74,.23,1.8),smoothstep(-.3,.6,curtain));
+        col+=aurora*filaments*weight*(.35+rim);
+      }
+      if(mode==12.){
+        vec2 point=vLocal.xy+vec2(.00001,0.);
+        float radius=length(point);
+        float spin=(1.-smoothstep(.13,.93,radius))*(1.25+.21*sin(age*1.6))*weight;
+        vec2 turn=mat2(cos(spin),-sin(spin),sin(spin),cos(spin))*point;
+        vec2 warpedUV=clamp(uv+(turn-point)*vec2(uResolution.y/uResolution.x,1.)*.25,vec2(.001),vec2(.999));
+        vec3 bentStars=texture2D(uBackground,warpedUV).rgb;
+        float disk=smoothstep(.31,.70,radius);
+        float bend=radius-.69;
+        float arc=smoothstep(-.66,.45,point.x+.24*point.y);
+        vec3 lens=bentStars*(.025+.90*disk)+vec3(.23,.40,1.02)*exp(-bend*bend*26.)*(.10+.27*arc);
+        col=mix(col,lens,weight*.97);
+      }
+      if(mode==13.){
+        vec2 point=vLocal.xy+vec2(.00001,0.);
+        float sector=floor((atan(point.y,point.x)+3.141593)*.95493);
+        float planes=.5+.5*cos(sector*2.39996+vLocal.z*1.3);
+        float glint=vLocal.y+.52*vLocal.x-travel*1.31;
+        vec3 facetColor=mix(vec3(.08,.26,.63),vec3(.75,.42,1.12),planes);
+        col=mix(col,col*(.69+.30*planes)+facetColor*(.12+rim*.43),weight*.83);
+        col+=spectrum*exp(-glint*glint*82.)*(.69+rim*.77)*weight;
+      }
+      if(mode==14.){
+        float cloud=fbm3(vLocal*3.1+vec3(age*.16,-age*.11,age*.19));
+        float lit=smoothstep(.36,.74,cloud);
+        col+=mix(vec3(.33,.12,1.22),vec3(1.4,.26,.72),lit)*lit*weight*(.13+rim*.80);
+      }
+    }
+    float height=clamp(vLocal.y*.5+.5,0.,1.);
+    float filmFill=mix(uShell,smoothstep(height-.22,height+.22,uShell),uPopReform);
+    float seamDistance=(height-uShell)*9.;
+    float seam=exp(-seamDistance*seamDistance)*uPopReform;
+    vec3 popLight=mix(edgeColor,vec3(.9,.95,1.),.55);
+    vec3 filmLight=popLight*pow(1.-nv,3.)*(uPopFlash*2.7+seam*1.25);
+    gl_FragColor=vec4(mix(texture2D(uInner,uv).rgb,max(col,vec3(0.)),filmFill)+filmLight,1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
     gl_FragColor.rgb+=(fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5)/255.;
@@ -341,6 +412,150 @@ function make(canvas,{monitor=false}={}){
   camera.position.set(0,0,3.85);
   camera.lookAt(0,0,0);
   const orb=new THREE.Group();scene.add(orb);
+  const particleGlassBackground={value:null},particleGlassResolution={value:new THREE.Vector2(2,2)};
+  function particleGlass(tint,bend){
+    return new THREE.ShaderMaterial({
+      transparent:true,depthWrite:false,
+      uniforms:{uBackdrop:particleGlassBackground,uViewport:particleGlassResolution,uTint:{value:tint},uBend:{value:bend},uVisibility:{value:0}},
+      vertexShader:`
+        varying vec3 vNormal,vView;
+        void main(){
+          vec4 viewPosition=modelViewMatrix*vec4(position,1.);
+          vView=-viewPosition.xyz;
+          vNormal=normalMatrix*normal;
+          gl_Position=projectionMatrix*viewPosition;
+        }
+      `,
+      fragmentShader:`
+        uniform sampler2D uBackdrop;
+        uniform vec2 uViewport;
+        uniform vec3 uTint;
+        uniform float uBend,uVisibility;
+        varying vec3 vNormal,vView;
+        void main(){
+          vec3 normal=normalize(vNormal),view=normalize(vView);
+          vec2 uv=gl_FragCoord.xy/uViewport;
+          vec2 shift=(refract(-view,normal,1./1.43).xy+view.xy)*uBend*vec2(uViewport.y/uViewport.x,1.);
+          vec3 through=vec3(
+            texture2D(uBackdrop,clamp(uv+shift*1.14,0.,1.)).r,
+            texture2D(uBackdrop,clamp(uv+shift,0.,1.)).g,
+            texture2D(uBackdrop,clamp(uv+shift*.86,0.,1.)).b
+          );
+          vec3 milkGlass=mix(vec3(.45),uTint*.62,.55);
+          vec3 color=mix(through*mix(vec3(1.),uTint,.14),milkGlass,.42);
+          gl_FragColor=vec4(color,uVisibility);
+        }
+      `
+    });
+  }
+  const heartShape=new THREE.Shape();
+  heartShape.moveTo(0,-.12);
+  heartShape.bezierCurveTo(-.06,-.06,-.21,.015,-.125,.10);
+  heartShape.bezierCurveTo(-.085,.145,-.025,.12,0,.072);
+  heartShape.bezierCurveTo(.025,.12,.085,.145,.125,.10);
+  heartShape.bezierCurveTo(.21,.015,.06,-.06,0,-.12);
+  const heartGeometry=new THREE.ExtrudeGeometry(heartShape,{depth:.019,bevelSize:.018,bevelThickness:.016,bevelSegments:5,curveSegments:24});
+  const heartMaterial=particleGlass(new THREE.Color(1.35,.22,.51),.08);
+  const dropletGeometry=new THREE.SphereGeometry(.029,16,12);
+  const hearts=Array.from({length:6},()=>new THREE.Mesh(heartGeometry,heartMaterial));
+  const droplets=Array.from({length:42},(_,index)=>{
+    const tint=new THREE.Color(1.35,.46,1.04).lerp(new THREE.Color(.35,.97,1.4),(1+Math.sin(index*2.39996))*.5);
+    const drop=new THREE.Mesh(dropletGeometry,particleGlass(tint,.026));
+    drop.renderOrder=6;
+    return drop;
+  });
+  scene.add(...hearts,...droplets);
+  const wakeSegments=46,wakePositions=new Float32Array((wakeSegments+1)*6);
+  const wakeUVs=new Float32Array((wakeSegments+1)*4),wakeIndices=[];
+  for(let index=0;index<=wakeSegments;index++){
+    wakeUVs.set([index/wakeSegments,0,index/wakeSegments,1],index*4);
+    const vertex=index*2;
+    if(index<wakeSegments)wakeIndices.push(vertex,vertex+1,vertex+2,vertex+1,vertex+3,vertex+2);
+  }
+  const wakeGeometry=new THREE.BufferGeometry();
+  wakeGeometry.setAttribute('position',new THREE.BufferAttribute(wakePositions,3).setUsage(THREE.DynamicDrawUsage));
+  wakeGeometry.setAttribute('uv',new THREE.BufferAttribute(wakeUVs,2));
+  wakeGeometry.setIndex(wakeIndices);
+  const wakeMaterial=new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
+    uniforms:{uWakeAlpha:{value:0}},
+    vertexShader:`varying vec2 vWake;void main(){vWake=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vWake;uniform float uWakeAlpha;void main(){
+      float across=abs(vWake.y*2.-1.);
+      float feather=1.-smoothstep(.04,1.,across);
+      float filament=.55+.45*sin(vWake.x*17.+vWake.y*18.);
+      vec3 color=mix(vec3(.92,2.15,3.65),vec3(.62,.24,1.65),across);
+      gl_FragColor=vec4(color,uWakeAlpha*feather*filament*pow(clamp(1.-vWake.x,0.,1.),1.35));
+    }`
+  });
+  const cometWake=new THREE.Mesh(wakeGeometry,wakeMaterial);
+  cometWake.frustumCulled=false;cometWake.visible=false;scene.add(cometWake);
+  cometWake.renderOrder=6;
+  const cometCoreGeometry=new THREE.PlaneGeometry(2,2);
+  const cometCoreMaterial=new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{uCoreAlpha:{value:0}},
+    vertexShader:`varying vec2 vCore;void main(){vCore=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vCore;uniform float uCoreAlpha;void main(){
+      float radius=dot(vCore,vCore);
+      float light=(exp(-radius*19.)*.85+exp(-radius*5.)*.32)*(1.-smoothstep(.64,1.,radius));
+      vec3 color=mix(vec3(.23,1.35,3.3),vec3(4.2,4.8,5.4),exp(-radius*25.));
+      gl_FragColor=vec4(color,light*uCoreAlpha);
+    }`
+  });
+  const cometCore=new THREE.Mesh(cometCoreGeometry,cometCoreMaterial);
+  cometCore.visible=false;cometCore.renderOrder=7;scene.add(cometCore);
+  const shockGeometry=new THREE.PlaneGeometry(2,2);
+  const shockRings=Array.from({length:1},()=>{
+    const ring=new THREE.Mesh(shockGeometry,new THREE.ShaderMaterial({
+      transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
+      uniforms:{uStrength:{value:0},uAge:{value:0},uAtmosphere:{value:0}},
+      vertexShader:`varying vec2 vRing;void main(){vRing=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader:`
+        varying vec2 vRing;
+        uniform float uStrength,uAge,uAtmosphere;
+        ${noiseGLSL}
+        void main(){
+          vec2 point=vRing+vec2(1.e-5,0.);
+          float radius=length(point),angle=atan(point.y,point.x);
+          if(uAtmosphere>0.){
+            float feather=1.-smoothstep(.57,.99,radius);
+            float wisps=fbm3(vec3(point*3.8,uAge*.21));
+            if(uAtmosphere==11.){
+              float sweep=point.y-.21-.25*sin(point.x*5.+uAge*1.5);
+              float lower=point.y+.20-.19*sin(point.x*6.-uAge*1.2);
+              float veils=exp(-sweep*sweep*34.)+.60*exp(-lower*lower*38.);
+              vec3 tint=mix(vec3(.13,1.8,1.16),vec3(.81,.22,1.6),smoothstep(.21,.73,wisps+.19*point.y));
+              gl_FragColor=vec4(tint,uStrength*feather*veils*(.37+.63*wisps));return;
+            }
+            if(uAtmosphere==12.){
+              vec2 disk=vec2(point.x,point.y*2.7);
+              float distance=length(disk),azimuth=atan(disk.y,disk.x+.00001);
+              float band=distance-.70;
+              float filament=.46+.54*fbm3(vec3(disk*5.3,uAge*.53));
+              float arc=.28+.72*smoothstep(-.8,.7,cos(azimuth-uAge*.65));
+              vec3 tint=mix(vec3(.24,.34,1.38),vec3(1.55,.73,.37),arc);
+              gl_FragColor=vec4(tint,uStrength*feather*exp(-band*band*25.)*filament*arc);return;
+            }
+            float swirl=sin(angle*2.-radius*5.+uAge*.64);
+            float cloud=smoothstep(.30,.76,wisps+.17*swirl);
+            vec3 tint=mix(vec3(.25,.12,1.18),vec3(1.47,.31,.78),smoothstep(.35,.8,cloud));
+            gl_FragColor=vec4(tint,uStrength*feather*cloud*smoothstep(.10,.40,radius));return;
+          }
+          float lobes=.69+.14*sin(angle*7.+.9)+.09*cos(angle*13.)+.045*sin(angle*23.);
+          float billow=1.-smoothstep(lobes*.57,lobes,radius);
+          float turbulence=.57+.23*sin(angle*17.+radius*29.-uAge*5.)+.16*cos(angle*9.-radius*43.+uAge*6.);
+          float rays=pow(.5+.5*sin(angle*19.+1.9*sin(angle*7.)),9.);
+          rays*=smoothstep(.30,.46,radius)*(1.-smoothstep(lobes*.72,1.,radius));
+          float hot=exp(-radius*radius*7.)*(1.-smoothstep(.08,.46,uAge));
+          vec3 color=mix(vec3(.75,.09,.36),vec3(2.6,.95,.22),clamp(hot+billow*.64,0.,1.));
+          color=mix(color,vec3(3.2,2.6,1.65),hot*.72);
+          gl_FragColor=vec4(color,uStrength*(billow*turbulence*.82+rays*.72+hot*.55));
+        }
+      `
+    }));
+    ring.visible=false;scene.add(ring);return ring;
+  });
   const studioCanvas=document.createElement('canvas');studioCanvas.width=2048;studioCanvas.height=1024;
   const studioContext=studioCanvas.getContext('2d');
   studioContext.fillStyle='#05090e';studioContext.fillRect(0,0,2048,1024);
@@ -364,8 +579,8 @@ function make(canvas,{monitor=false}={}){
     uActionA:{value:new THREE.Vector4()},uActionB:{value:new THREE.Vector4()},uActionTime:{value:0},
     uFlowScale:{value:.8},uFlowCurl:{value:1},uFlowAngle:{value:0},uVoiceEnvelope:{value:0},uVoiceHalo:{value:.7},uFlowTime:{value:0},uAudioFluid:{value:0},uTime:{value:0},uMotion:{value:.7},uLevel:{value:0},uDeform:{value:.42},
     uSurfaceTension:{value:.35},uBreath:{value:0},uSurfaceRoughness:{value:.12},uSurfaceFrosting:{value:0},uIridescence:{value:.2},uRibbonPhase:{value:0},uRibbonWidth:{value:.5},uRibbonIntensity:{value:1},
-    uEdgeSoftness:{value:.65},uFeatureSoftness:{value:.55},uEdgeGlow:{value:.7},uStyle:{value:0},uPalette:{value:1},uFace:{value:.23},uGlass:{value:.75},
-    uRefraction:{value:.58},uDispersion:{value:.28},uDepth:{value:.66},
+    uEdgeSoftness:{value:.65},uFeatureSoftness:{value:.55},uEdgeGlow:{value:.7},uStyle:{value:0},uPalette:{value:1},uFace:{value:.23},uGlass:{value:.75},uShell:{value:1},
+    uRefraction:{value:.58},uDispersion:{value:.28},uDepth:{value:.66},uPopFlash:{value:0},uPopReform:{value:0},uStageEffect:{value:new THREE.Vector4()},uEffectTravel:{value:0},
     uRipple:{value:.45},uBass:{value:0},uMid:{value:0},uTreble:{value:0},
     uResolution:{value:new THREE.Vector2(2,2)},uInner:{value:null},uFrostedInner:{value:null}
   };
@@ -378,6 +593,7 @@ function make(canvas,{monitor=false}={}){
   innerTarget.texture.colorSpace=THREE.LinearSRGBColorSpace;innerTarget.texture.generateMipmaps=false;
   U.uInner.value=innerTarget.texture;
   const backgroundTarget=innerTarget.clone();backgroundTarget.texture.generateMipmaps=false;backgroundTarget.texture.minFilter=THREE.LinearFilter;U.uBackground.value=backgroundTarget.texture;
+  particleGlassBackground.value=backgroundTarget.texture;
   const starField=createStarField(THREE,paletteUniforms);scene.add(starField.points);
   const postProcessing=createPostProcessing(THREE,renderer);
   const glassFrosting=createGlassFrosting(THREE,renderer);
@@ -431,6 +647,18 @@ function make(canvas,{monitor=false}={}){
   const cavityMat=softenContour(new THREE.MeshPhysicalMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:2.6,roughness:.6,envMapIntensity:0,transparent:true,depthWrite:false}));
   const cavityGeometry=new THREE.SphereGeometry(1,64,32);
   const cavity=new THREE.Mesh(cavityGeometry,cavityMat);
+  const orbitGeometry=new THREE.SphereGeometry(1,40,28);
+  const orbitMaterial=particleGlass(new THREE.Color(.66,.91,1.18),.072);
+  const orbitFaceMaterial=new THREE.MeshBasicMaterial({color:new THREE.Color(2.5,2.6,2.8),transparent:true,depthWrite:false});
+  const orbitCopies=Array.from({length:8},()=>{
+    const group=new THREE.Group();
+    const shell=new THREE.Mesh(orbitGeometry,orbitMaterial);shell.renderOrder=7;group.add(shell);
+    const features=[...eyes,cavity].map(feature=>{
+      const copy=new THREE.Mesh(feature.geometry,orbitFaceMaterial);copy.renderOrder=8;group.add(copy);return copy;
+    });
+    group.visible=false;scene.add(group);
+    return {group,features};
+  });
   cavity.position.set(0,-.285,.940);cavity.renderOrder=2;faceRig.add(cavity);
   const mouthTemplate=new Float32Array(cavityGeometry.attributes.position.array);
   function shapeMouth(width,height,curve,radius,skew=0){
@@ -449,9 +677,18 @@ function make(canvas,{monitor=false}={}){
     [1.1,1.25,0,.06,.01,0,.035]
   ];
   let expression=[...profiles[0]];
+  const extraProfiles={
+    flirting:[1.1,.79,.1,.04,-.16,0,0],
+    laugh:[1.18,.30,.10,.065,-.19,0,.024],
+    shy:[.92,.56,.08,-.06,-.095,0,0],
+    surprise:[.31,.34,0,.065,0,0,0],
+    sleepy:[1.04,.24,0,-.045,0,0,0],
+    proud:[1.13,.62,.08,.025,-.15,0,0]
+  };
   const eyeExpression=[0,1].map(()=>({width:1,height:1,tilt:0,lift:0,curve:0}));
   const stagePosition=createStagePosition(),characterPerformance=createCharacterPerformance(),gazeDriver=createGazeDriver();
-  let mouthSkew=0,previousActorYaw=0,previousActorPitch=0;
+  const bodyForm=createBodyForm();
+  let mouthSkew=0,previousActorYaw=0,previousActorPitch=0,previousFlirtTilt=0;
   let previousWidth=0,previousHeight=0,previousScale=0;
   let mouseX=0,mouseY=0,dragging=false,dragX=0,dragY=0;
   const audience=new URLSearchParams(location.search).get('view')==='stage';
@@ -480,7 +717,7 @@ function make(canvas,{monitor=false}={}){
     renderer.setPixelRatio(scale);
     renderer.setSize(w,h,false);
     const dw=renderer.domElement.width,dh=renderer.domElement.height;
-    innerTarget.setSize(dw,dh);backgroundTarget.setSize(dw,dh);
+    innerTarget.setSize(dw,dh);backgroundTarget.setSize(dw,dh);particleGlassResolution.value.set(dw,dh);
     postProcessing.resize(dw,dh);glassFrosting.resize(dw,dh);
     U.uResolution.value.set(dw,dh);
     camera.aspect=w/h;camera.position.z=3.85/Math.min(1,camera.aspect);camera.updateProjectionMatrix();
@@ -497,14 +734,17 @@ function make(canvas,{monitor=false}={}){
   function number(v,def,min=0,max=1){const x=Number(v);return Number.isFinite(x)?THREE.MathUtils.clamp(x,min,max):def;}
   function draw(p){
     if(contextLost)return;
+    resize(number(p.quality,1,.65,1.3));
     orb.rotation.y-=previousActorYaw;orb.rotation.x-=previousActorPitch;
+    orb.rotation.z-=previousFlirtTilt;
     const t=number(p.time,0,0,1e8),lvl=number(p.level,0);
     const motion=number(p.motion,.55,0,2),intensity=number(p.intensity,.7);
     const performance=characterPerformance.update(p.actorAction,p.actionSurface??1,number(p.frameDelta,.016,0,.06),p.performanceTime);
     const actionSurface=performance.surface;
     U.uActionA.value.fromArray(actionSurface.a);U.uActionB.value.fromArray(actionSurface.b);U.uActionTime.value=actionSurface.time;
     const actionBody=performance.body;
-    U.uActionShape.value.fromArray(actionBody.shape);U.uActionBody.value.fromArray(actionBody.body);U.uActionBodyTime.value=actionBody.time;
+    const form=bodyForm(p.bodyForm,number(p.frameDelta,.016,0,.06),actionBody);
+    U.uActionShape.value.fromArray(form.shape);U.uActionBody.value.fromArray(actionBody.body);U.uActionBodyTime.value=actionBody.time;
     const faceHandoff=thinkingFaceHandoff(actionBody.face),faceLight=faceHandoff.normal;
     const gaze=gazeDriver.update(p.actorAction,number(p.frameDelta,.016,0,.06));
     U.uStyle.value=number(p.style,0,0,3);
@@ -513,7 +753,8 @@ function make(canvas,{monitor=false}={}){
     U.uVoiceEnvelope.value=voiceEnvelope.update(number(p.amplitude,lvl),delta);U.uVoiceHalo.value=number(p.voiceHalo,.7);
     // Grow the real back volume; no screen-space disc or fixed-radius glow ring.
     halo.scale.setScalar(.90+number(p.haloSpread,.45)*.40+U.uVoiceEnvelope.value*.065);
-    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p)});
+    const effect=stageEffectPose(p.actorAction);
+    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p),action:starActionPose(p.actorAction,effect)});
     scene.background.set(/^#[0-9a-f]{6}$/i.test(p.backgroundColor)?p.backgroundColor:'#000000');
     U.uFlowScale.value=number(p.flowScale,.8,.3,2);U.uFlowCurl.value=number(p.flowCurl,1,0,2);U.uFlowAngle.value=number(p.flowAngle,0,-180,180)*Math.PI/180;
     const fluid=audioFluid.update(number(p.amplitude,lvl),delta,p.audioFluid!==false,motion,number(p.audioResponse,1,0,2));
@@ -560,25 +801,60 @@ function make(canvas,{monitor=false}={}){
       target[4]=facePose.curve;target[5]=facePose.opening;target[6]=facePose.bounce;
     }
     const actor=p.actorAction;
-    const actorProfile=actor?.kind==='expression'?profiles[ACTOR_EXPRESSIONS.indexOf(actor.name)]:null;
+    U.uStageEffect.value.set(effect?.mode??0,effect?.time??0,effect?.weight??0,effect?.cometFlare??effect?.beat??0);
+    U.uEffectTravel.value=effect?.travel??0;
+    const libraryEmote=actor?.kind==='expression'&&Object.hasOwn(LIBRARY_EMOTES,actor.name)?LIBRARY_EMOTES[actor.name]:null;
+    const libraryWeight=libraryEmote?number(actor.weight,0):0;
+    const emoteMotion=libraryEmote?libraryEmoteMotion(actor.name,actor.elapsed):null;
+    const motionValue=key=>(emoteMotion?.[key]??0)*libraryWeight;
+    const laughing=actor?.kind==='expression'&&actor.name==='laugh';
+    const shy=actor?.kind==='expression'&&actor.name==='shy';
+    const surprise=actor?.kind==='expression'&&actor.name==='surprise';
+    const sleepy=actor?.kind==='expression'&&actor.name==='sleepy';
+    const proud=actor?.kind==='expression'&&actor.name==='proud';
+    const recoil=surprise?actor.weight*Math.exp(-actor.elapsed/360):0;
+    const sleepyNod=sleepy?actor.weight*(.5-.5*Math.cos(Math.PI*2*actor.elapsed/actor.duration)):0;
+    const proudLift=proud?actor.weight:0;
+    const laughBeat=laughing?Math.pow(.5-.5*Math.cos(2*Math.PI*actor.elapsed*.0032),1.7):0;
+    const shyDip=shy?actor.weight*(1-Math.exp(-actor.elapsed/230)):0;
+    const bubble=bubbleActionPose(actor);
+    previousFlirtTilt=bubble.tilt-.14*shyDip+motionValue('tilt');
+    orb.rotation.z+=previousFlirtTilt;
+    previousActorYaw+=motionValue('yaw');
+    orb.rotation.y+=motionValue('yaw');
+    const emotePitch=.19*shyDip-.22*recoil+.22*sleepyNod-.17*proudLift+motionValue('pitch');
+    previousActorPitch+=emotePitch;
+    orb.rotation.x+=emotePitch;
+    const shell=effect?.shell??bubble.shell;
+    U.uFace.value*=effect?.face??1;
+    U.uShell.value=shell;
+    U.uPopFlash.value=effect?.flash??bubble.flash;
+    U.uPopReform.value=effect?.reform??bubble.reform;
+    U.uVoiceHalo.value*=shell;
+    const actorProfile=actor?.kind==='expression'?(libraryEmote?.face??extraProfiles[actor.name]??profiles[ACTOR_EXPRESSIONS.indexOf(actor.name)]):null;
     const actorWeight=actorProfile?number(actor.weight,0):0;
-    const mouthPose=blendActorMouth({width:target[0],curve:target[4],opening:target[5],bounce:target[6],skew:facePose?.skew||0},actorProfile,actorWeight,ACTOR_APERTURES[actor?.name]||0);
+    const aperture=laughing?.062+.13*laughBeat:surprise?.29+.07*Math.exp(-actor.elapsed/950):proud?.068:Math.max(0,(libraryEmote?.aperture??ACTOR_APERTURES[actor?.name]??0)+(emoteMotion?.jaw??0));
+    const orbitProfile=effect?.mode===9?[1.06,.84,.02,.025,-.14,0,0]:null;
+    const mouthPose=blendActorMouth({width:target[0],curve:target[4],opening:target[5],bounce:target[6],skew:facePose?.skew||0},orbitProfile??actorProfile,orbitProfile?effect.split:actorWeight,orbitProfile?.115:aperture);
     target[0]=mouthPose.width;target[4]=mouthPose.curve;target[5]=mouthPose.opening;target[6]=mouthPose.bounce;
     const blend=1.-Math.exp(-number(p.frameDelta,t-(draw.lastTime??t),0,.06)*8.);
     draw.lastTime=t;
     expression=expression.map((v,i)=>THREE.MathUtils.lerp(v,target[i],blend));
     const [width,height,slope,lift,curve,opening,bounce]=expression;
-    mouthSkew=THREE.MathUtils.lerp(mouthSkew,mouthPose.skew,blend);
+    mouthSkew=THREE.MathUtils.lerp(mouthSkew,mouthPose.skew+motionValue('skew'),blend);
 
     const blink=number(p.blink,0);
     faceRig.position.y=mood===4?-.035:0;
     const facialRadius=.985-U.uDeform.value*.055;
     eyes.forEach((eye,i)=>{
       const actionBlink=Math.max(number(p.operatorBlink,0),number(p.actorHeadOffset?.blink,0));
-      const openness=Math.min(face?eyeOpenness(coeff(i===0?'eyeBlinkLeft':'eyeBlinkRight'),true):eyeOpenness(blink),1-actionBlink);
+      const openness=Math.min(face?eyeOpenness(coeff(i===0?'eyeBlinkLeft':'eyeBlinkRight'),true):eyeOpenness(blink),1-actionBlink,i===0?1-bubble.wink:1,1-.75*sleepyNod,1-motionValue('lids'));
       const base=profiles[mood];
       const baseEye=facePose?.eyes[i]||{width:base[0],height:base[1]*(mood===1&&i===0?1.25:1),tilt:(i===0?-1:1)*base[2],lift:base[3]};
       const goal={...blendActorEye(baseEye,actorProfile,i,actorWeight),curve:eyeContourCurve({trackedCurve:facePose?.curve??null,emotion:ACTOR_EXPRESSIONS[mood],action:actor,height:baseEye.height})};
+      if(libraryEmote?.eyes)goal.height*=THREE.MathUtils.lerp(1,libraryEmote.eyes[i],libraryWeight);
+      goal.height*=1+motionValue('eyeHeight')+(i===0?-1:1)*motionValue('eyeBias');
+      goal.lift+=motionValue('eyeLift');
       for(const key of ['width','height','tilt','lift','curve'])eyeExpression[i][key]=THREE.MathUtils.lerp(eyeExpression[i][key],goal[key],blend);
       const pose=eyeExpression[i];
       eye.scale.x=.132*pose.width;eye.scale.y=.135*Math.max(.002,pose.height*openness);
@@ -593,13 +869,14 @@ function make(canvas,{monitor=false}={}){
 
     const speaking=!face&&p.speaking?lvl:0;
     const baseMouthWidth=face?.17*width:(mood===5?.095:mood===2?.21:.17);
-    const actionMouthWidth=actor?.name==='afraid'?.095:actor?.name==='joy'?.21:.17;
+    const actionMouthWidth=libraryEmote?.width??({afraid:.115,joy:.225,flirting:.205,angry:.145,sad:.19,curious:.135,laugh:.24,shy:.149,surprise:.19,proud:.21})[actor?.name]??.17;
     const mouth=speechMouthPose({opening,voice:speaking,width:baseMouthWidth+(actionMouthWidth-baseMouthWidth)*actorWeight,curve,skew:mouthSkew,pucker:coeff('mouthPucker'),funnel:coeff('mouthFunnel'),bass:p.bass,treble:p.treble});
     cavity.visible=mouth.light*faceLight>.001;
     cavityMat.opacity=U.uFace.value*mouth.light*faceLight;
     cavityMat.emissiveIntensity=2.6*mouth.light*faceLight*number(p.featureEmission,1,0,2);
     cavity.position.y=-.285-mouth.drop;
-    shapeMouth(mouth.width,Math.max(.003,mouth.height),mouth.curve,facialRadius,mouth.skew);
+    const gasp=surprise?actorWeight:0;
+    shapeMouth(THREE.MathUtils.lerp(mouth.width,.215,gasp),Math.max(.003,THREE.MathUtils.lerp(mouth.height,.165,gasp)),mouth.curve*(1-gasp),facialRadius,mouth.skew);
     thoughtDots.forEach((dot,i)=>{
       const light=faceHandoff.thought*actionBody.dots[i];
       dot.visible=light>.001;
@@ -613,11 +890,124 @@ function make(canvas,{monitor=false}={}){
       if(dot.visible)wrapEyeInsideGlass(dot.geometry,thoughtTemplate,dot,facialRadius,faceRig.position.y);
     });
     const position=stagePosition.update({head:p.head,delta:number(p.frameDelta,.016,0,.06),time:t,intensity,bounce,frequency:mood===2?4:1.8,freeze:p.freeze});
-    orb.position.set(position.x,position.y,position.z);
+    const comet=effect?.mode===3;
+    const projectComet=(stamp,weight)=>{
+      const depth=stamp.z*weight;
+      const halfHeight=(camera.position.z-position.z-depth)*Math.tan(camera.fov*Math.PI/360);
+      return {x:stamp.x*weight*halfHeight*camera.aspect,y:stamp.y*weight*halfHeight,z:depth};
+    };
+    const flight=comet?projectComet(cometPath(effect.time),effect.weight):null;
+    orb.position.set(position.x+(flight?.x??effect?.shift??0),position.y+.026*laughBeat*actorWeight-.018*shyDip+motionValue('lift')+(flight?.y??effect?.lift??0),position.z+(flight?.z??effect?.depth??0));
     orb.scale.y*=1.+Math.sin(t*3)*bounce*.45*intensity;
+    const stretch=motionValue('stretch')+(effect?.stretch??0);
+    orb.scale.x*=1-.55*stretch+(effect?.spread??0);
+    orb.scale.y*=1+stretch;
+    orb.scale.multiplyScalar(1+.042*(effect?.flash??bubble.flash));
+    orb.scale.multiplyScalar(1+(effect?.compression??0));
+    const split=effect?.split??0,orbitScale=orb.scale.x;
+    orbitMaterial.uniforms.uVisibility.value=Math.min(1,split*1.6);
+    orbitFaceMaterial.opacity=Math.min(1,split*1.6)*Math.max(.65,U.uFace.value);
+    orbitCopies.forEach(({group,features},index)=>{
+      group.visible=false;
+      if(split<=.001)return;
+      const angle=index*Math.PI/4+effect.time*2.25;
+      const radial=(.08+1.37*split)*orbitScale;
+      const horizontal=Math.cos(angle)*radial;
+      group.position.set(orb.position.x+horizontal,orb.position.y+.65*Math.sin(angle)*radial+.18*horizontal,orb.position.z+.50*Math.sin(angle)*radial);
+      group.rotation.z=.24*Math.sin(angle);
+      group.scale.setScalar(.28*orbitScale*Math.sqrt(split));
+      features.forEach((copy,featureIndex)=>{
+        const source=featureIndex<eyes.length?eyes[featureIndex]:cavity;
+        copy.position.copy(source.position);
+        copy.position.y+=faceRig.position.y;
+        copy.rotation.copy(source.rotation);copy.scale.copy(source.scale);
+        copy.visible=source.visible;
+      });
+    });
+    const cometFlare=effect?.cometFlare??0;
+    orb.visible=split<.997&&!effect?.cometHidden&&cometFlare<.94;
+    if(comet)orb.scale.multiplyScalar(1-.34*cometFlare);
+    cometCore.visible=false;
+    cometCore.position.copy(orb.position);
+    cometCore.scale.setScalar(orb.scale.x*(1.28+.035*Math.max(0,-(effect?.depth??0))));
+    cometCoreMaterial.uniforms.uCoreAlpha.value=effect?.cometHidden?0:cometFlare;
+    orb.scale.multiplyScalar(Math.max(.002,1-split));
+    shockRings.forEach(ring=>{
+      const atmosphere=[11,12,14].includes(effect?.mode)?effect.mode:0;
+      ring.material.uniforms.uAtmosphere.value=atmosphere;
+      if(atmosphere){
+        ring.visible=effect.weight>.001;
+        ring.material.uniforms.uAge.value=effect.time;
+        ring.material.uniforms.uStrength.value=effect.weight*(atmosphere===11?.57:atmosphere===12?.84:.52);
+        ring.position.set(orb.position.x,orb.position.y,orb.position.z-.68);
+        ring.rotation.z=atmosphere===11?-.14:atmosphere===12?-.31:.19;
+        ring.scale.setScalar((atmosphere===11?2.15:atmosphere===12?2.18:1.58+.72*(1-Math.exp(-effect.time*1.8)))*orb.scale.x);
+        return;
+      }
+      const age=effect?.mode===1?effect.time-.43:-1;
+      const assembling=effect?.mode===1&&effect.time>=1.40&&effect.time<2.23;
+      ring.visible=(age>=0&&age<1.00||assembling)&&effect.weight>.001;
+      if(!ring.visible)return;
+      const progress=assembling?1-effect.assembly:age/1.08;
+      ring.material.uniforms.uAge.value=assembling?progress:age;
+      ring.material.uniforms.uStrength.value=assembling
+        ?effect.weight*Math.sin(Math.PI*effect.assembly)*.74
+        :effect.weight*Math.min(1,age/.026)*(1-progress)**1.65;
+      ring.position.set(orb.position.x,orb.position.y,orb.position.z-.37);
+      ring.rotation.z=.14+age*.16;
+      ring.scale.setScalar((1.16+2.18*(1-Math.exp(-(assembling?progress:age)*7)))*orb.scale.x);
+    });
+    cometWake.visible=false;
+    wakeMaterial.uniforms.uWakeAlpha.value=0;
+    if(effect?.mode===3&&effect.particles>.001){
+      const end=Math.min(COMET_EXIT,effect.time);
+      const start=Math.max(.08,effect.time-1.06);
+      const width=orb.scale.x;
+      wakeMaterial.uniforms.uWakeAlpha.value=end>start?.68*effect.particles:0;
+      for(let index=0;index<=wakeSegments;index++){
+        const fraction=index/wakeSegments,stampTime=THREE.MathUtils.lerp(end,start,fraction);
+        const stamp=projectComet(cometPath(stampTime),effect.weight);
+        const ahead=cometPath(Math.min(COMET_EXIT,stampTime+.015)),behind=cometPath(stampTime-.015);
+        const heading=Math.atan2(ahead.y-behind.y,(ahead.x-behind.x)*camera.aspect);
+        const span=(.23+.53*Math.sin(fraction*Math.PI*.85))*width;
+        const x=position.x+stamp.x,y=position.y+stamp.y,z=position.z+stamp.z-.27;
+        wakePositions.set([x-Math.sin(heading)*span,y+Math.cos(heading)*span,z,x+Math.sin(heading)*span,y-Math.cos(heading)*span,z],index*6);
+      }
+      wakeGeometry.attributes.position.needsUpdate=true;
+    }
+    heartMaterial.uniforms.uVisibility.value=bubble.hearts;
+    hearts.forEach((heart,index)=>{
+      const rise=(bubble.age*.40+index*.37)%1;
+      heart.visible=false;
+      heart.position.copy(orb.position).add(new THREE.Vector3((index%2?1:-1)*(1.12+.28*Math.sin(index*2.4+rise)),(rise-.48)*2.25,-.8));
+      heart.rotation.set(.22,Math.sin(bubble.age+index)*.35,(index%2?-.24:.24));
+      heart.scale.setScalar((.7+.12*(index%3))*Math.sin(Math.PI*rise));
+    });
+    droplets.forEach((drop,index)=>{
+      const angle=index*Math.PI*2/droplets.length+.1*Math.sin(index*2.4);
+      const travel=Math.max(0,bubble.age-.21),speed=.7+1.15*(.5+.5*Math.sin(index*5.7));
+      const radius=.96+speed*travel/(1+1.35*travel);
+      const size=(.26+.72*Math.pow(.5+.5*Math.cos(index*4.1),2))*(1-.56*Math.min(1,travel))*orb.scale.x;
+      drop.material.uniforms.uVisibility.value=bubble.burst;
+      drop.visible=false;
+      drop.position.set(orb.position.x+Math.cos(angle)*radius*orb.scale.x,orb.position.y+Math.sin(angle)*radius*orb.scale.y-travel*travel*.72,orb.position.z+.1+.25*Math.sin(index*3.1));
+      drop.rotation.z=angle;
+      drop.scale.set(size*(1+speed*Math.exp(-travel*7)),size*.74,size);
+      if(effect){
+        const phase=angle+effect.time*(index%2?2.0:-1.5);
+        const twinkle=.5+.5*Math.sin(effect.time*8+index*2.4);
+        const count=effect.mode===3?0:42;
+        drop.material.uniforms.uVisibility.value=index<count?effect.particles:0;
+        if(effect.mode===6){
+          const distance=(1.21+.21*Math.sin(index*3.7+effect.time*2))*orb.scale.x;
+          drop.position.set(orb.position.x+Math.cos(phase)*distance,orb.position.y+Math.sin(phase)*distance,orb.position.z+Math.sin(phase)*.55);
+          drop.scale.setScalar(.18+twinkle*.76);
+          drop.material.uniforms.uVisibility.value*=twinkle*twinkle;
+        }
+      }
+    });
     faceRig.position.y=mood===4?-.035:0;
     faceRig.visible=U.uFace.value>.006;
-    resize(number(p.quality,1,.65,1.3));
     camera.updateMatrixWorld();orb.updateMatrixWorld(true);
     U.uFaceRadius.value=facialRadius;
     U.uWorldToLocal.value.copy(orb.matrixWorld).invert();
@@ -626,7 +1016,9 @@ function make(canvas,{monitor=false}={}){
 
     // Capture the star volume before rendering the inner glass and facial volumes.
     inner.visible=false;glass.visible=false;halo.visible=false;faceRig.visible=false;
+    if(!comet||orb.visible){
     renderer.setRenderTarget(backgroundTarget);renderer.clear();renderer.render(scene,camera);
+    hearts.forEach(heart=>{heart.visible=bubble.hearts>.001;});
     faceRig.visible=U.uFace.value>.006;
     // Both facial volumes are curved just beneath the refracting shell.
     inner.visible=true;glass.visible=false;
@@ -635,6 +1027,7 @@ function make(canvas,{monitor=false}={}){
     renderer.render(scene,camera);
 
     U.uFrostedInner.value=glassFrosting.render(innerTarget.texture,U.uSurfaceFrosting.value);
+    }
 
     // Pass 2: refract the first pass through the independent 3D glass surface.
     // The core and face are hidden here to prevent double-rendering / flat overlays.
@@ -642,11 +1035,21 @@ function make(canvas,{monitor=false}={}){
     renderer.clear();
     inner.visible=false;faceRig.visible=false;
     glass.visible=true;halo.visible=U.uVoiceHalo.value>.001;
+    orbitCopies.forEach(({group})=>{group.visible=split>.001;});
+    cometWake.visible=effect?.mode===3&&wakeMaterial.uniforms.uWakeAlpha.value>.001;
+    cometCore.visible=cometCoreMaterial.uniforms.uCoreAlpha.value>.001;
+    droplets.forEach(drop=>{drop.visible=drop.material.uniforms.uVisibility.value>.001;});
     renderer.render(scene,camera);
     inner.visible=true;faceRig.visible=U.uFace.value>.006;
     postProcessing.render({bloomStrength:number(p.bloomStrength,.48,0,1.5),flareStrength:number(p.flareStrength,.18),threshold:1.2,chromatic:number(p.crtChromatic,0)});
   }
   function dispose(){
+    cometCoreGeometry.dispose();cometCoreMaterial.dispose();
+    orbitGeometry.dispose();orbitMaterial.dispose();orbitFaceMaterial.dispose();
+    wakeGeometry.dispose();wakeMaterial.dispose();
+    shockGeometry.dispose();shockRings.forEach(ring=>ring.material.dispose());
+    heartGeometry.dispose();heartMaterial.dispose();dropletGeometry.dispose();
+    droplets.forEach(drop=>drop.material.dispose());
     postProcessing.dispose();glassFrosting.dispose();geometryHalo.dispose();halo.material.dispose();
     studioEnvironment.dispose();studioMap.dispose();starField.dispose();
     backgroundTarget.dispose();cavityGeometry.dispose();

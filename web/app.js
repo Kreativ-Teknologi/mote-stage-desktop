@@ -1,5 +1,6 @@
 import {createShowClock} from './show-clock.js';
-import {ACTION_BODY_HINTS} from './action-body.js';
+import {createEmoteLayout} from './emote-layout.js';
+import {ACTION_BODY_HINTS,BODY_FORMS} from './action-body.js';
 import {requestLocalMedia} from './media-input.js';
 import {makeActorAction,createActorActionPlayer,actorGesturePose,ACTOR_LABELS} from './actor-actions.js';
 import {APPEARANCE_DEFAULTS,CONTROLS,pickAppearance} from './appearance-settings.js';
@@ -32,11 +33,12 @@ import './orb-renderer.js';
     {title:'Resolution', emotion:'joy', scene:'dawn', role:'speaker'}
   ];
   const defaults = {
+    bodyForm:'round',
     ...APPEARANCE_DEFAULTS,
     actorActionDuration:4,actorActionMode:'blend',actionSurface:1,freeHeadMovement:false,headMovement:1,audioFluid:true,faceStrength:1.8,trackingFailsafe:true,trackingBlackout:false,look:'luminous',expressionMode:'manual',emotion:'neutral',scene:'aether',role:'speaker',intensity:.95,sensitivity:1.8,gate:.018,
     facePresence:.92,fluidMotion:.35,orbSize:.72,renderQuality:1.3,surfaceDeformation:0,glassDepth:.40,
     voiceHalo:.7,starField:.35,bloomStrength:.48,flareStrength:.18,edgeGlow:.7,refraction:.40,dispersion:.12,internalDepth:.25,surfaceRipples:.10,
-    voiceReactive:true,freeze:false,blackout:false,blackoutKeyEnabled:false,blackoutKeyColor:DEFAULT_BLACKOUT_KEY_COLOR,showName:false,name:'Nord',
+    voiceReactive:true,freeze:false,blackout:false,blackoutKeyEnabled:false,blackoutKeyColor:DEFAULT_BLACKOUT_KEY_COLOR,showName:false,name:'Bubbles',
     activeCue:0,mouthX:50,mouthY:59,mouthScale:20
   };
   const safeLoad = (key,fallback) => {
@@ -54,7 +56,7 @@ import './orb-renderer.js';
     if(state.look==='luminous'&&Number(state.facePresence)<.1)state.facePresence=.92;
     state.luminousFaceV1=true;
   }
-  if(!state.nordV1){if(!state.name||state.name==='MOTE')state.name='Nord';state.nordV1=true;}
+  if(!state.bubblesV1){if(!state.name||['MOTE','Nord'].includes(state.name))state.name='Bubbles';state.bubblesV1=true;}
   let cues = safeLoad(CUES_KEY, defaultCues);
   if (!Array.isArray(cues) || !cues.length) cues = structuredClone(defaultCues);
   cues = cues.filter(c => c && typeof c.title === 'string').slice(0,50);
@@ -69,6 +71,8 @@ import './orb-renderer.js';
   const webcam=STAGE_MODE?null:createWebcam(id('cameraPreview'),id('cameraStatus'));
   const trackingFailsafe=createTrackingFailsafe();
   const actorActions=createActorActionPlayer();
+  const previewActions=createActorActionPlayer();
+  let emotePreviewRenderer;
   let cameraRequested=false,trackingTestUntil=0;
   let tracking=null,trackingAt=0,frozenTracking=null,lastTrackingSend=0;
   let stageAssetsReceived=false;
@@ -88,7 +92,7 @@ import './orb-renderer.js';
   let fpsFrames = 0, fpsStart = performance.now(), fpsValue = 0;
 
   document.body.classList.toggle('stage-mode',STAGE_MODE);
-  const baseTitle=STAGE_MODE?'Nord — Audience Display':'Nord — Performance Control';
+  const baseTitle=STAGE_MODE?'Bubbles — Audience Display':'Bubbles — Performance Control';
   document.title=baseTitle;
   window.MOTEDesktop?.version().then(version=>{id('buildVersion').textContent='v'+version;document.title=baseTitle+' · v'+version;});
 
@@ -186,9 +190,11 @@ import './orb-renderer.js';
         powerSurface.classList.add(black?'tv-off':'tv-on');
       }
     }
-    id('stageName').textContent=state.name||'Nord';
+    id('stageName').textContent=state.name||'Bubbles';
     id('stageFooter').style.display=state.showName?'flex':'none';
     if (STAGE_MODE) return;
+    const form=BODY_FORMS.includes(state.bodyForm)?state.bodyForm:'round';
+    $$('[data-body-form]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.bodyForm===form)));
     id('previewMoodLabel').textContent=(state.emotion+' · '+(state.role==='speaker'?'speaking':'listening')+' · '+({aether:'Opal',ember:'Aurora',dawn:'Prism',void:'Abyss'}[state.scene]||state.scene)).toUpperCase();
     id('monitorRole').textContent='VOICE → '+state.role.toUpperCase()+' MODE';
     id('activeCueLabel').textContent=(cues[state.activeCue]?.title||'MANUAL PERFORMANCE').toUpperCase();
@@ -277,6 +283,13 @@ import './orb-renderer.js';
   function releaseActorAction(){actorActions.release();post({type:'actor-action',action:null});updateActorControls();}
   function updateActorControls(){
     if(STAGE_MODE)return;
+    $$('[data-body-form]').forEach(button=>{
+      const key=emoteLayout?.shapeKey(button.dataset.bodyForm);
+      const label=button.textContent.trim();
+      button.title=key?label+' · '+key.toUpperCase():label;
+      if(key)button.setAttribute('aria-keyshortcuts',key.toUpperCase());
+      else button.removeAttribute('aria-keyshortcuts');
+    });
     const action=actorActions.sample();
     document.querySelectorAll('[data-actor-kind]').forEach(b=>{
       const active=!!action&&b.dataset.actorKind===action.kind&&b.dataset.actorName===action.name;
@@ -367,11 +380,13 @@ import './orb-renderer.js';
     });
   }
 
+  let emoteLayout;
   function setupConsole(){
     setupNdiOutput();
     calibrationUI=createCalibrationUI({webcam,notify});
     const selectTab=name=>{
       document.body.dataset.tab=name;
+      if(name!=='emotes')previewActions.release();
       document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
     };
     selectTab('actor');
@@ -379,7 +394,17 @@ import './orb-renderer.js';
     selectSettings('inputs');
     id('openTrackingSettings').addEventListener('click',()=>selectSettings('profiles'));
     document.querySelectorAll('[data-settings-tab]').forEach(b=>b.addEventListener('click',()=>selectSettings(b.dataset.settingsTab)));
-    document.querySelectorAll('[data-actor-kind]').forEach(b=>{if(ACTION_BODY_HINTS[b.dataset.actorName])b.title=ACTION_BODY_HINTS[b.dataset.actorName];b.addEventListener('click',()=>playActorAction(b.dataset.actorKind,b.dataset.actorName));});
+    const actorPanel=document.querySelector('[data-panel="actor"]');
+    actorPanel.querySelectorAll('[data-body-form]').forEach(button=>button.addEventListener('click',()=>setState({bodyForm:button.dataset.bodyForm})));
+    actorPanel.querySelectorAll('[data-actor-kind]').forEach(button=>{if(ACTION_BODY_HINTS[button.dataset.actorName])button.title=ACTION_BODY_HINTS[button.dataset.actorName];});
+    emoteLayout=createEmoteLayout({grid:id('emotionGrid'),editor:id('emoteLayoutSlots'),library:id('emoteLayoutLibrary'),status:id('emoteLayoutStatus'),reset:id('emoteLayoutReset'),size:id('emoteLayoutSize'),shapeEditor:id('shapeShortcutSlots'),onChange:updateActorControls,onPreview:name=>{
+      const action=makeActorAction('expression',name,state.actorActionDuration,state.actorActionMode);
+      if(action)previewActions.receive(action);
+    }});
+    actorPanel.addEventListener('click',event=>{
+      const button=event.target.closest('[data-actor-kind]');
+      if(button)playActorAction(button.dataset.actorKind,button.dataset.actorName);
+    });
     id('releaseActorAction').addEventListener('click',releaseActorAction);
     id('baseEmotion').addEventListener('change',e=>setState({emotion:e.target.value,activeCue:-1}));
     id('actorActionDuration').addEventListener('input',e=>setState({actorActionDuration:Math.max(3,Math.min(5,Number(e.target.value)))}));
@@ -430,7 +455,7 @@ import './orb-renderer.js';
     id('actionSurface').addEventListener('input',e=>setState({actionSurface:Number(e.target.value)/100}));
     id('cameraFace').addEventListener('change',e=>setState({cameraFace:e.target.checked}));
     id('trackingFailsafe').addEventListener('change',e=>setState({trackingFailsafe:e.target.checked}));
-    id('testTrackingLoss').addEventListener('click',()=>{trackingTestUntil=performance.now()+2600;notify('Testing tracking loss. Nord will shut down, then restore.');});
+    id('testTrackingLoss').addEventListener('click',()=>{trackingTestUntil=performance.now()+2600;notify('Testing tracking loss. Bubbles will shut down, then restore.');});
     window.addEventListener('pagehide',()=>{media?.removeEventListener('devicechange',refreshCameraDevices);webcam.stop();});
     id('expressionMode').addEventListener('change',e=>{setState({expressionMode:e.target.value});candidateSince=performance.now();});
     $$('.role-btn').forEach(b=>b.addEventListener('click',()=>setState({role:b.dataset.role,activeCue:-1})));
@@ -517,7 +542,10 @@ import './orb-renderer.js';
     if(target instanceof Element && target.closest('input,select,textarea,[contenteditable]'))return;
     if(target instanceof Element && target.closest('button')&&(e.code==='Space'||e.key==='Enter'||e.key.startsWith('Arrow')))return;
     if(STAGE_MODE){if(key==='f'){e.preventDefault();requestFullscreen();}return;}
-    if(key>='1' && key<='8'){e.preventDefault();playActorAction('expression',MOODS[Number(key)-1]);return;}
+    const shape=document.body.dataset.tab==='emotes'?null:emoteLayout?.shapeForKey(key);
+    if(shape){e.preventDefault();if(!e.repeat)setState({bodyForm:shape});return;}
+    const emote=document.body.dataset.tab==='emotes'?null:emoteLayout?.forKey(key);
+    if(emote){e.preventDefault();if(!e.repeat)playActorAction('expression',emote);return;}
     if(e.code==='Space'||e.key==='ArrowRight'){e.preventDefault();takeNextCue();return;}
     if(key==='b'){setState({blackout:!state.blackout});return;}
     if(key==='x'){setState({freeze:!state.freeze});return;}
@@ -572,7 +600,7 @@ import './orb-renderer.js';
     }catch(err){
       stream?.getTracks().forEach(t=>t.stop());if(ctx)try{await ctx.close();}catch(_){}
       if(audio!==request||err?.name==='AbortError')return;
-      notify(err?.name==='NotAllowedError'?'Microphone permission denied. Allow Nord in your system privacy settings, then retry.':'Microphone error: '+(err?.message||'not available'));
+      notify(err?.name==='NotAllowedError'?'Microphone permission denied. Allow Bubbles in your system privacy settings, then retry.':'Microphone error: '+(err?.message||'not available'));
       button.innerHTML='<span class="btn-icon">◉</span> Enable microphone <span class="btn-arrow">↗</span>';
       id('meterCaption').textContent='Microphone unavailable';
     }finally{if(audio===request){audio.starting=false;button.disabled=false;}}
@@ -698,9 +726,18 @@ import './orb-renderer.js';
     if(!state.freeze||!frozenPose)frozenPose=pose;
     const actorAction=actorActions.sample(now);
     monitorDelta+=dt;
-    const drawMonitor=STAGE_MODE||(document.body.dataset.tab==='actor'&&now-lastMonitorFrame>=33);
+    const showPreview=!STAGE_MODE&&document.body.dataset.tab==='emotes';
+    const drawMonitor=STAGE_MODE||((showPreview||document.body.dataset.tab==='actor')&&now-lastMonitorFrame>=33);
     if(drawMonitor){lastMonitorFrame=now;
-    orb?.draw({...getRenderSettings(state),...(state.freeze?frozenPose:pose),freeze:state.freeze,
+    if(showPreview){
+      emotePreviewRenderer??=window.MOTEOrb?.make(id('emotePreviewCanvas'),{monitor:true});
+      const action=previewActions.sample(now);
+      const caption=action?ACTOR_LABELS[action.name]:'Click an emote';
+      const label=id('emotePreviewName');
+      if(label.textContent!==caption)label.textContent=caption;
+      emotePreviewRenderer?.draw({...getRenderSettings(state),time:now/1000,emotion:0,blink:clamp(blinkAmt),
+        frameDelta:Math.min(.06,monitorDelta),performanceTime:showClock.sample(now),actorAction:action,actionSurface:state.actionSurface});
+    }else orb?.draw({...getRenderSettings(state),...(state.freeze?frozenPose:pose),freeze:state.freeze,
       performanceTime:showClock.sample(now),frameDelta:STAGE_MODE?dt:Math.min(.06,monitorDelta),actorAction,actionSurface:state.actionSurface,actorHeadOffset:actorGesturePose(actorAction,(state.freeze?frozenPose:pose).head),
       crtChromatic:Math.sin(Math.PI*clamp((now-powerTransitionAt)/850))});monitorDelta=0;} 
 

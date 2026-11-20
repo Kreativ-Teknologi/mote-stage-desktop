@@ -40,7 +40,12 @@ console.log('Verified Actor timing, blend/override, smooth release, reconnect, h
 
 const html=await readFile(new URL('../web/index.html',import.meta.url),'utf8');
 const panel=html.match(/<section data-panel="actor"[\s\S]*?<\/section>/)[0];
-assert.equal([...panel.matchAll(/data-actor-kind=/g)].length,12,'Actor exposes all eight expressions and four gestures');
+assert.equal([...panel.matchAll(/data-actor-kind="expression"/g)].length,15,'Actor exposes three full rows of five expressions');
+assert.equal([...panel.matchAll(/data-actor-kind="gesture"/g)].length,4);
+for(const name of ['flirting','pop','laugh','shy','surprise','sleepy','proud']){
+  assert.ok(panel.includes('data-actor-name="'+name+'"'));
+  assert.ok(makeActorAction('expression',name,4,'blend',0,name));
+}
 assert.ok(!/<input|<select/.test(panel),'The Actor view contains actions, not setup controls');
 assert.match(html,/data-tab="actor"[^>]*>Actor<\/button>/);assert.match(html,/data-tab="settings"/);
 assert.ok(!html.includes('data-panel="performance"'),'Input setup has moved out of the Actor view');

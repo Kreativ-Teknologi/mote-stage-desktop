@@ -61,7 +61,7 @@ app.whenReady().then(()=>{
   });
   function ensureOutput(focus=true){
     if(!output||output.isDestroyed()){
-      output=new BrowserWindow({title:'Nord — Audience Display',width:1100,height:760,backgroundColor:'#000000',autoHideMenuBar:true,webPreferences:preferences});
+      output=new BrowserWindow({title:'Bubbles — Audience Display',width:1100,height:760,backgroundColor:'#000000',autoHideMenuBar:true,webPreferences:preferences});
       output.on('closed',()=>{output=null;void ndi.stop('Audience window closed. NDI output stopped.');});
       output.webContents.on('render-process-gone',()=>{void ndi.stop('Audience window stopped rendering. NDI output stopped.');});
       output.loadURL('mote://stage/index.html?view=stage');
