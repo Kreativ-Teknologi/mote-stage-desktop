@@ -10,6 +10,7 @@ for(const invalid of [null,{}, {kind:'gesture',name:'nod',weight:1},action('unkn
 }
 assert.deepEqual(actionSurfacePose(action('angry'),0),rest,'Surface reactions can be disabled');
 assert.equal(actionSurfacePose(action('angry'),100).spike,1.5,'Reaction strength is bounded');
+assert.deepEqual(actionSurfacePose(action('joy')),rest,'Smile leaves the fluid surface alone');
 const poses=names.map(name=>actionSurfacePose(action(name)));
 assert.equal(new Set(poses.map(p=>JSON.stringify([p.a,p.b]))).size,names.length,'Each action has a distinct material performance');
 assert.ok(poses[0].baseMotion<.2,'Neutral actively calms the existing fluid field');
@@ -39,7 +40,7 @@ for(const name of names){
   const small=actionSurfacePose({...action(name),weight:1e-7});
   assert.ok(points.slice(0,50).every(p=>Math.abs(actionSurfaceDisplacement(p,small))<1e-7),'Action release returns to the base shape: '+name);
 }
-assert.equal(new Set(signature).size,names.length,'All eight actions give a distinct spatial result');
+assert.equal(new Set(signature).size,names.length,'All surface actions give a distinct spatial result');
 const anger=actionSurfacePose(action('angry'),1.5);
 assert.ok(Math.max(...points.map(p=>actionSurfaceDisplacement(p,anger)))>.08,'Angry spikes alter the actual silhouette visibly');
 for(const sign of [-1,1]){
@@ -54,4 +55,4 @@ assert.ok(Number.isFinite(actionSurfaceDisplacement([0,0,1],null)));
 assert.deepEqual(actionSurfacePose(action('constructor')),rest);
 assert.match(actionSurfaceGLSL,/uniform vec4 uActionA,uActionB/);
 assert.match(actionSurfaceGLSL,/float actionSurfaceDisplacement\(vec3 p\)/);
-console.log('Verified eight distinct action surfaces, enveloped release, 3D all-around spikes, downward fluid, bounded optical volume, continuity and invalid input handling.');
+console.log('Verified distinct action surfaces, enveloped release, 3D all-around spikes, downward fluid, bounded optical volume, continuity and invalid input handling.');

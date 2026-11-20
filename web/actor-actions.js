@@ -1,3 +1,6 @@
+import {BODY_FORMS} from './action-body.js';
+import {pickAppearance} from './appearance-settings.js';
+
 export const DEFAULT_EMOTES=['neutral','curious','joy','angry','sad','afraid','thinking','listening','flirting','pop','laugh','shy','surprise','sleepy','proud'];
 export const LIBRARY_EMOTES={
   delight:{label:'Delight',icon:'✺',hint:'Bright grin and a buoyant lift',face:[1.24,.59,.12,.085,-.20,0,.03],aperture:.13,width:.23,pitch:-.10,lift:.075},
@@ -9,7 +12,10 @@ export const LIBRARY_EMOTES={
   grumpy:{label:'Grumpy',icon:'▰',hint:'Heavy slanted eyes and a tight frown',face:[1.17,.33,.42,-.045,.14,0,0],aperture:.06,width:.19,pitch:.10},
   determined:{label:'Determined',icon:'➤',hint:'A steady, narrowed stare and a forward lean',face:[1.1,.46,.24,.01,-.018,0,0],aperture:.065,width:.18,pitch:.20,lift:.022},
   awe:{label:'Awe',icon:'✧',hint:'Slow upward gaze with an open, rounded mouth',face:[.92,1.27,0,.075,-.015,0,0],aperture:.19,width:.15,pitch:-.23,lift:.043},
-  pout:{label:'Pout',icon:'⌣',hint:'A little pinched mouth and lowered gaze',face:[.91,.70,-.17,-.05,.135,0,0],aperture:.088,width:.115,pitch:.11,tilt:-.085}
+  pout:{label:'Pout',icon:'⌣',hint:'A little pinched mouth and lowered gaze',face:[.91,.70,-.17,-.05,.135,0,0],aperture:.088,width:.115,pitch:.11,tilt:-.085},
+  smirk:{label:'Smirk',hint:'A crooked half-smile and a knowing glance',face:[1.03,.69,.13,.01,-.11,0,0],aperture:.068,width:.19,eyes:[.91,1.06]},
+  squint:{label:'Squint',hint:'Eyes narrow as Bubbles leans in to inspect',face:[1.22,.33,0,.022,-.018,0,0],aperture:.047,width:.14},
+  disgust:{label:'Disgust',hint:'Bubbles recoils and pulls one mouth corner down',face:[1.03,.62,-.29,-.014,.087,0,0],aperture:.112,width:.167,eyes:[.88,1.12]}
 };
 Object.assign(LIBRARY_EMOTES,{
   explosion:{label:'Explosion',icon:'✹',hint:'The glass compresses, then erupts in a jagged flash and expanding plume',effect:1},
@@ -25,7 +31,11 @@ Object.assign(LIBRARY_EMOTES,{
   aurora:{label:'Aurora',icon:'∿',hint:'Silky curtains of teal and violet unfurl around the glass',effect:11},
   wormhole:{label:'Wormhole',icon:'◉',hint:'Stars arc around a dark lens and a tilted ribbon of light',effect:12},
   crystal:{label:'Crystal',icon:'⬡',hint:'Bubbles crystallizes into cut glass with a traveling spectral glint',effect:13},
-  nebula:{label:'Nebula',icon:'☁',hint:'Violet and rose clouds billow out and curl around Bubbles',effect:14}
+  nebula:{label:'Nebula',icon:'☁',hint:'Violet and rose clouds billow out and curl around Bubbles',effect:14},
+  echo:{label:'Echo',icon:'◌',hint:'Three glass echoes lag behind a sweeping turn',effect:15},
+  lantern:{label:'Lantern',icon:'◆',hint:'A warm light grows inside the glass, then cools',effect:16},
+  gravity:{label:'Gravity',icon:'↓',hint:'Stars fall inward as Bubbles compresses, then spring back',effect:17},
+  fireflies:{label:'Fireflies',icon:'✷',hint:'Warm points of light rise in drifting spirals',effect:18}
 });
 export const ACTOR_EXPRESSIONS=[...DEFAULT_EMOTES,...Object.keys(LIBRARY_EMOTES)];
 export const ACTOR_APERTURES={neutral:0,curious:.045,joy:.102,angry:.072,sad:.06,afraid:.13,thinking:.025,listening:0,flirting:.082,shy:.049};
@@ -75,7 +85,7 @@ export function stageEffectPose(action){
       reform:weight*pulse(1.87,2.03,2.23),compression:weight*(-.22*charge+.12*impact-.30*pulse(1.72,1.93,2.24)),stretch:weight*(-.14*charge+.10*impact)});
   }
   if(mode===3){
-    const duration=clamp((action.duration||4000)/1000,3,5);
+    const duration=clamp((action.duration||4000)/1000,2.8,5);
     const flightEnd=duration*.74,returnStart=duration*.81,land=Math.max(returnStart+.1,duration-.08);
     const flightTime=time<flightEnd?time/flightEnd*COMET_EXIT:time<returnStart
       ?COMET_EXIT+(time-flightEnd)/(returnStart-flightEnd)*(COMET_RETURN-COMET_EXIT)
@@ -90,15 +100,28 @@ export function stageEffectPose(action){
   if(mode===4)pose.stretch=.075*weight*(pulse(.14,.30,.58)-pulse(.61,.83,1.19));
   if(mode===6)pose.particles=weight*ramp(.10,.45);
   if(mode===9){
-    const duration=clamp((action.duration||4000)/1000,3,5);
+    const duration=clamp((action.duration||4000)/1000,2.8,5);
     pose.split=weight*ramp(.10,.55)*(1-ramp(duration-.70,duration-.10));
   }
   if(mode===8){pose.stretch=.13*beat;pose.spread=.10*beat;}
   if(mode===10)Object.assign(pose,{stretch:-.49*slump+.15*rebound,spread:.14*slump,lift:-.31*slump+.08*rebound});
   if(mode===11)Object.assign(pose,{lift:.12*weight*ramp(.12,.95),stretch:.065*weight*Math.sin(time*2.3)});
-  if(mode===12)Object.assign(pose,{compression:-.11*weight*ramp(.18,.80),face:1-.96*weight*ramp(.18,.80)});
+  if(mode===12){
+    const pull=ramp(.12,.88)*weight;
+    Object.assign(pose,{gravity:pull,compression:-.16*pull,face:1-.99*pull});
+  }
   if(mode===13)pose.stretch=.085*weight*ramp(.04,.44);
   if(mode===14)Object.assign(pose,{compression:.09*weight*ramp(.22,1.5),lift:.043*weight*Math.sin(time*1.8)});
+  if(mode===15){
+    const sweep=pulse(.14,.56,1.13)-.72*pulse(1.08,1.58,2.16);
+    Object.assign(pose,{shift:.53*sweep*weight,lift:.11*sweep*weight,echo:weight*pulse(.16,.64,2.35)});
+  }
+  if(mode===16)pose.beat=weight*ramp(.15,.82)*(.83+.17*Math.sin(time*3.4));
+  if(mode===17){
+    const pull=weight*pulse(.12,.87,1.40),release=weight*pulse(1.02,1.47,2.13);
+    Object.assign(pose,{gravity:pull,beat:release,compression:-.23*pull+.12*release,stretch:-.16*pull+.10*release,lift:-.13*pull});
+  }
+  if(mode===18)pose.particles=weight*ramp(.18,.68);
   return pose;
 }
 export function starActionPose(action,effect){
@@ -107,14 +130,29 @@ export function starActionPose(action,effect){
   const time=action.elapsed/1000;
   const burst=(start,speed)=>smooth((time-start)/.09)*Math.exp(-Math.max(0,time-start)*speed)*weight;
   switch(action.name){
-    case 'explosion': {const wave=burst(.43,2.8);return [.31*wave,0,1.05*wave,.05];}
-    case 'pop': {const wave=burst(.21,4.2);return [.14*wave,0,.45*wave,.08];}
+    case 'explosion': {
+      const wave=burst(.43,2.8);
+      const push=weight*smooth((time-.43)/.16)*(1-smooth((time-.72)/1.42));
+      return [.14*wave,0,1.05*wave,.05*wave,.76*push];
+    }
+    case 'pop': {const wave=burst(.21,4.2);return [.14*wave,0,.45*wave,.08*wave];}
     case 'shockwave': {const wave=burst(.16,3.5)+.65*burst(.63,3);return [.17*wave,0,.53*wave,0];}
-    case 'wormhole': return [-.23*weight,.54*weight,.14*weight,.10*weight];
+    case 'wormhole': {
+      const pull=effect?.gravity??0;
+      return [0,.76*pull,.25*pull,.16*pull,0,0,pull];
+    }
     case 'orbit': return [0,.18*(effect?.split??0),.18*weight,0];
     case 'rainbow': return [0,0,.22*weight,.34*weight*Math.sin(time*1.8)];
     case 'aurora': return [.045*weight,.08*Math.sin(time*1.7)*weight,.28*weight,.18*weight];
+    case 'nebula': return [0,0,0,0,0,.37*weight*smooth((time-.12)/.92)];
+    case 'comet': {
+      const flight=effect?.time??0;
+      const pullback=smooth((flight-.19)/.62)*(1-smooth((flight-2.02)/.76));
+      return [0,0,0,0,0,.45*weight*pullback];
+    }
     case 'heartbeat': return [.10*(effect?.beat??0),0,.50*(effect?.beat??0),0];
+    case 'gravity': return [-.30*(effect?.gravity??0)+.23*(effect?.beat??0),.14*(effect?.gravity??0),.55*(effect?.beat??0),0];
+    case 'lantern': return [0,0,.17*(effect?.beat??0),0];
     default:return [];
   }
 }
@@ -124,6 +162,18 @@ export function libraryEmoteMotion(name,elapsed){
   const pulse=(start,peak,end)=>ramp(start,peak)*(1-ramp(peak,end));
   const beat=(rate,offset=0)=>Math.sin((time-offset)*Math.PI*2*rate);
   switch(name){
+    case 'smirk': {
+      const lean=ramp(.14,.63);
+      return {yaw:.16*lean,tilt:-.09*lean,skew:.042*lean,eyeBias:.20*lean};
+    }
+    case 'squint': {
+      const check=pulse(.10,.47,1.24),hold=ramp(.12,.68);
+      return {pitch:.13*hold,eyeHeight:-.38*hold,lids:.55*check,eyeLift:.022*hold};
+    }
+    case 'disgust': {
+      const flinch=pulse(.10,.40,1.14),turn=ramp(.1,.62);
+      return {pitch:-.28*flinch,yaw:-.22*turn,lids:.34*flinch,jaw:.088*flinch,skew:-.039*turn};
+    }
     case 'delight': {
       const hop=pulse(.06,.33,.79)+.65*pulse(.78,1.02,1.44);
       return {lift:.15*hop,stretch:.13*hop,pitch:-.13*hop,jaw:.15*hop,lids:.22*hop,eyeLift:.045*hop};
@@ -180,30 +230,63 @@ export function bubbleActionPose(action){
   const tilt=action.name==='flirting'?.18*weight*smooth((age-.14)/.26)*(1-smooth((age-.56)/.43)):0;
   return {shell,wink,tilt,hearts:action.name==='flirting'?weight:0,burst,flash,reform,age};
 }
-export function makeActorAction(kind,name,duration=4,mode='blend',wallNow=Date.now(),id=crypto.randomUUID()){
+export function makeActorAction(kind,name,duration=4,mode='blend',wallNow=Date.now(),id=crypto.randomUUID(),form,followUp,appearance,nextForm,nextAppearance){
   if(!(kind==='expression'?ACTOR_EXPRESSIONS:kind==='gesture'?ACTOR_GESTURES:[]).includes(name))return null;
-  return {id,kind,name,duration:clamp(Number(duration)||4,3,5)*1000,mode:mode==='override'?'override':'blend',at:wallNow};
+  const action={id,kind,name,duration:clamp(Number(duration)||4,3,5)*1000,mode:mode==='override'?'override':'blend',at:wallNow};
+  if(BODY_FORMS.includes(form))action.form=form;
+  const nextKind=ACTOR_GESTURES.includes(followUp)?'gesture':ACTOR_EXPRESSIONS.includes(followUp)?'expression':null;
+  if(nextKind&&followUp!==name){
+    action.followUp={name:followUp,kind:nextKind};
+    if(BODY_FORMS.includes(nextForm))action.followUp.form=nextForm;
+    if(nextAppearance&&typeof nextAppearance==='object'&&!Array.isArray(nextAppearance))action.followUp.appearance=pickAppearance(nextAppearance);
+  }
+  if(appearance&&typeof appearance==='object'&&!Array.isArray(appearance))action.appearance=pickAppearance(appearance);
+  return action;
 }
 export function createActorActionPlayer(now=()=>performance.now(),wallNow=()=>Date.now()){
-  let action=null,start=0,releasedAt=null,seenId='';
+  const handoffMs=170;
+  let action=null,start=0,releasedAt=null,seenId='',handoff=null;
   function sample(time=now()){
     if(!action)return null;
-    const elapsed=Math.max(0,time-start),remaining=Math.max(0,action.duration-elapsed);
+    const totalElapsed=Math.max(0,time-start),totalDuration=action.duration*(action.followUp?2:1);
+    const totalRemaining=Math.max(0,totalDuration-totalElapsed);
+    const phaseIndex=action.followUp&&totalElapsed>=action.duration?1:0;
+    const elapsed=totalElapsed-phaseIndex*action.duration,remaining=Math.max(0,action.duration-elapsed);
     let weight=smooth(elapsed/180)*smooth(remaining/650);
     if(releasedAt!==null)weight*=1-smooth((time-releasedAt)/220);
-    if(remaining<=0||(releasedAt!==null&&time-releasedAt>=220)){action=null;return null;}
-    return {...action,elapsed,remaining,progress:elapsed/action.duration,weight:weight*(action.mode==='blend'?.86:1)};
+    if(totalRemaining<=0||(releasedAt!==null&&time-releasedAt>=220)){action=null;return null;}
+    const phase=phaseIndex?action.followUp:{name:action.name,kind:action.kind};
+    const sequence=action.followUp?{phaseIndex,rootName:action.name,rootKind:action.kind,totalRemaining,totalProgress:totalElapsed/totalDuration,
+      formWeight:smooth(totalElapsed/180)*smooth(totalRemaining/650)*(releasedAt===null?1:1-smooth((time-releasedAt)/220))}:{};
+    return {...action,...phase,...sequence,elapsed,remaining,progress:elapsed/action.duration,weight:weight*(action.mode==='blend'?.86:1)};
+  }
+  function visual(time=now()){
+    const next=sample(time);
+    if(!next||!handoff||next.phaseIndex===1)return next;
+    const age=Math.max(0,time-handoff.at);
+    if(age<handoffMs){
+      const release=releasedAt===null?1:1-smooth((time-releasedAt)/220);
+      const fade=(1-smooth(age/handoffMs))*release;
+      return {...handoff.from,weight:handoff.from.weight*fade,...(handoff.from.formWeight!==undefined?{formWeight:handoff.from.formWeight*fade}:{})};
+    }
+    const elapsed=Math.max(0,next.elapsed-handoffMs),duration=next.duration-handoffMs;
+    const release=releasedAt===null?1:1-smooth((time-releasedAt)/220);
+    return {...next,elapsed,duration,progress:elapsed/duration,
+      ...(next.formWeight!==undefined?{formWeight:next.formWeight*smooth(elapsed/180)}:{}),
+      weight:smooth(elapsed/180)*smooth(next.remaining/650)*release*(next.mode==='blend'?.86:1)};
   }
   return {
     receive(next){
       if(next===null){if(action&&releasedAt===null)releasedAt=now();return;}
       if(!next||typeof next.id!=='string'||next.id===seenId||!Number.isFinite(next.at)||!Number.isFinite(next.duration))return;
-      const valid=makeActorAction(next.kind,next.name,next.duration/1000,next.mode,next.at,next.id);if(!valid)return;
+      const valid=makeActorAction(next.kind,next.name,next.duration/1000,next.mode,next.at,next.id,next.form,next.followUp?.name,next.appearance,next.followUp?.form,next.followUp?.appearance);if(!valid)return;
       seenId=next.id;const age=Math.max(0,wallNow()-next.at);
-      if(age>=valid.duration){action=null;return;}
-      action=valid;start=now()-age;releasedAt=null;
+      if(age>=valid.duration*(valid.followUp?2:1))return;
+      const receipt=now(),from=visual(receipt);
+      handoff=from?.weight>.001?{from,at:receipt-age}:null;
+      action=valid;start=receipt-age;releasedAt=null;
     },
-    sample,
+    sample,visual,
     current(){return sample()&&releasedAt===null?{...action}:null;},
     release(){if(action&&releasedAt===null)releasedAt=now();}
   };

@@ -9,16 +9,23 @@ export function createStarField(THREE,avatarPaletteUniforms=null){
   const paletteUniforms=createPaletteUniforms(THREE);applyPalette(paletteUniforms,0);
   const uniforms={...paletteUniforms,time:{value:0},amount:{value:.35},pixelRatio:{value:1},drift:{value:new THREE.Vector2()},sizeRange:{value:new THREE.Vector2(.65,2.2)},depth:{value:1},twinkle:{value:.2},twinklePhase:{value:0},glow:{value:1},spread:{value:1},softness:{value:.65}};
   uniforms.action={value:new THREE.Vector4()};
+  uniforms.blast={value:0};
+  uniforms.pullback={value:0};
+  uniforms.suction={value:0};
   const material=new THREE.ShaderMaterial({uniforms,transparent:true,depthWrite:false,depthTest:true,toneMapped:false,
-    vertexShader:`attribute float seed;uniform float pixelRatio,depth,twinkle,twinklePhase,glow,spread;uniform vec2 drift,sizeRange;uniform vec4 action;varying float brightness,colorSeed;
+    vertexShader:`attribute float seed;uniform float pixelRatio,depth,twinkle,twinklePhase,glow,spread,blast,pullback,suction,time;uniform vec2 drift,sizeRange;uniform vec4 action;varying float brightness,colorSeed;
       void main(){vec3 p=position;p.x=mod(p.x+16.+drift.x,32.)-16.;p.y=mod(p.y+11.+drift.y,22.)-11.;p.xy*=spread;p.z=-2.+(p.z+2.)*depth;
         float influence=1./(1.+dot(p.xy,p.xy)*.028);
         float rotation=action.y*influence;
         p.xy=mat2(cos(rotation),-sin(rotation),sin(rotation),cos(rotation))*p.xy*(1.+action.x*influence);
+        p.xy*=(1.+blast)*(1.-pullback);
+        float fall=suction*smoothstep(0.,1.,fract(seed*.91+time*.47));
+        float twist=fall*(1.15+1.2*influence);
+        p.xy=mat2(cos(twist),-sin(twist),sin(twist),cos(twist))*p.xy*(1.-fall*.74);
         vec4 view=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*view;
         float depthScale=clamp(14./-view.z,.5,1.6);
-        gl_PointSize=clamp(mix(sizeRange.x,sizeRange.y,pow(seed,.8))*depthScale*pixelRatio,.3,20.*pixelRatio);
-        brightness=(.18+pow(seed,6.)*6.)*mix(1.,.65+.35*sin(twinklePhase*.18+seed*85.),twinkle)*glow*(1.+action.z*influence);colorSeed=fract(seed+action.w*influence);}`,
+        gl_PointSize=clamp(mix(sizeRange.x,sizeRange.y,pow(seed,.8))*depthScale*pixelRatio*(1.-pullback),.3,20.*pixelRatio);
+        brightness=(.18+pow(seed,6.)*6.)*mix(1.,.65+.35*sin(twinklePhase*.18+seed*85.),twinkle)*glow*(1.+action.z*influence)*mix(1.,1.-smoothstep(.72,.98,fract(seed*.91+time*.47)),suction);colorSeed=fract(seed+action.w*influence);}`,
     fragmentShader:`${paletteGLSL} uniform float amount,softness;varying float brightness,colorSeed;
       void main(){vec2 p=gl_PointCoord*2.-1.;float r=dot(p,p);if(r>1.)discard;
         float profile=exp(-r*mix(1.75,6.75,softness))*(1.-smoothstep(.65,1.,r));
@@ -41,6 +48,9 @@ export function createStarField(THREE,avatarPaletteUniforms=null){
     uniforms.drift.value.x=wrap(uniforms.drift.value.x+16,32)-16;uniforms.drift.value.y=wrap(uniforms.drift.value.y+11,22)-11;
     uniforms.time.value=time;uniforms.amount.value=p.amount;uniforms.pixelRatio.value=finite(input.pixelRatio,1,.5,4);
     uniforms.action.value.set(finite(input.action?.[0],0,-.35,.45),finite(input.action?.[1],0,-.8,.8),finite(input.action?.[2],0,0,1.4),finite(input.action?.[3],0,-.5,.5));
+    uniforms.blast.value=finite(input.action?.[4],0,0,.8);
+    uniforms.pullback.value=finite(input.action?.[5],0,0,.5);
+    uniforms.suction.value=finite(input.action?.[6],0,0,1);
     uniforms.sizeRange.value.set(p.minSize,p.maxSize);uniforms.depth.value=p.depth;uniforms.twinkle.value=p.twinkle;uniforms.glow.value=p.glow;
     uniforms.twinklePhase.value+=dt*p.twinkleSpeed;uniforms.spread.value=p.spread;uniforms.softness.value=p.softness;
     colorPhase=wrap(colorPhase+dt*p.colorSpeed*.04,1);

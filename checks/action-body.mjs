@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {actionBodyPose,actionBodyDisplacement} from '../web/action-body.js';
+import {actionBodyPose,actionBodyDisplacement,createBodyForm} from '../web/action-body.js';
 const action=(name,progress=.2,extra={})=>({kind:'expression',name,elapsed:4000*progress,duration:4000,remaining:4000*(1-progress),weight:.86,mode:'blend',...extra});
 const rest=actionBodyPose(null);
 for(const a of [null,{},action('bad'),action('thinking',1),action('thinking',.5,{remaining:0}),action('thinking',.5,{weight:0}),{kind:'gesture',name:'nod',weight:1}])assert.deepEqual(actionBodyPose(a),rest);
@@ -27,10 +27,14 @@ assert.ok(actionBodyDisplacement([Math.SQRT1_2,Math.SQRT1_2,0],square)-actionBod
 assert.ok(actionBodyDisplacement([0,1,0],tri)-actionBodyDisplacement([0,-1,0],tri)>.5,'Triangle points upward with a broad base');
 const sad=actionBodyPose(action('sad'));
 assert.ok(actionBodyDisplacement([1,0,0],sad)>actionBodyDisplacement([0,1,0],sad)+.15,'Frown forms a soft wide cushion rather than a pointed teardrop');
-const joy=actionBodyPose(action('joy'));
+const smile=actionBodyPose(action('joy'));
+assert.deepEqual(smile.shape,rest.shape,'Smile preserves the selected body shape');
+const selectForm=createBodyForm();
+let star;
+for(let i=0;i<120;i++)star=selectForm('star',1/60,smile);
 const tip=[0,1,0],valley=[Math.cos(Math.PI/2+Math.PI/5),Math.sin(Math.PI/2+Math.PI/5),0];
-assert.ok(actionBodyDisplacement(tip,joy)-actionBodyDisplacement(valley,joy)>.40,'Smile has five clear star points and deep valleys');
-const projected=angle=>{let maximum=0;for(let i=0;i<=300;i++){const r=i/300,z=Math.sqrt(1-r*r);maximum=Math.max(maximum,r*(1+actionBodyDisplacement([r*Math.cos(angle),r*Math.sin(angle),z],joy)));}return maximum;};
+assert.ok(actionBodyDisplacement(tip,star)-actionBodyDisplacement(valley,star)>.40,'Star has five clear star points and deep valleys');
+const projected=angle=>{let maximum=0;for(let i=0;i<=300;i++){const r=i/300,z=Math.sqrt(1-r*r);maximum=Math.max(maximum,r*(1+actionBodyDisplacement([r*Math.cos(angle),r*Math.sin(angle),z],star)));}return maximum;};
 assert.ok(projected(Math.PI/2)-projected(Math.PI/2+Math.PI/5)>.38,'The front and back of the real 3D body do not fill the star valleys in projection');
 const listen=actionBodyPose(action('listening'));
 for(const side of [-1,1]){

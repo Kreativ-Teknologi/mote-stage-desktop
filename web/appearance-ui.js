@@ -2,7 +2,7 @@ import {STAR_PALETTES} from './background-settings.js';
 import {COLOR_MOTION_PRESETS} from './surface-animation.js';
 import {CONTROLS,formatControl,pickAppearance,createAppearanceStore,resetAppearanceSection} from './appearance-settings.js';
 import {paletteHex,PALETTES} from './palettes.js';
-export function createAppearanceUI({getState,setState,notify}){
+export function createAppearanceUI({getState,setState,notify,onPresetsChange}){
   const id=x=>document.getElementById(x),store=createAppearanceStore(localStorage);
   let selectedId='',lastList='',panel='surface',lastEdit='',lastAt=0;
   const history=[];
@@ -64,6 +64,7 @@ export function createAppearanceUI({getState,setState,notify}){
       const remove=document.createElement('button');remove.type='button';remove.textContent='Delete';remove.className='quiet-delete';remove.setAttribute('aria-label','Delete '+record.name);remove.addEventListener('click',()=>{store.remove(record.id);if(selectedId===record.id)selectedId='';id('undoPreset').hidden=false;id('presetMessage').textContent='Deleted '+record.name+'.';update();});
       actions.append(apply,remove);row.append(swatch,text,actions);list.append(row);
     }
+    onPresetsChange?.();
   }
   id('saveAppearance').addEventListener('click',()=>{try{const r=store.save(id('presetName').value,getState());selectedId=r.id;id('presetMessage').textContent='Saved '+r.name+'.';render();update();}catch(e){notify(e.message);}});
   id('undoPreset').addEventListener('click',()=>{const r=store.undo();if(r){id('presetMessage').textContent='Restored '+r.name+'.';id('undoPreset').hidden=true;update();}});
@@ -97,5 +98,8 @@ export function createAppearanceUI({getState,setState,notify}){
     const saved=store.list().find(p=>p.id===selectedId);id('appearanceStatus').textContent=saved?(JSON.stringify(saved.appearance)===JSON.stringify(pickAppearance(s))?'Saved · '+saved.name:'Modified · '+saved.name):'Live appearance';
     render();updateSaveLabel();
   }
-  update();return {update};
+  update();return {update,list:store.list,loadPreset:presetId=>{
+    const record=store.list().find(preset=>preset.id===presetId);
+    if(record)load(record);
+  }};
 }

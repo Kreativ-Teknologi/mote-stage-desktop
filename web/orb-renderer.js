@@ -3,7 +3,7 @@ import {eyeContourCurve,createGazeDriver} from './facial-animation.js';
 import {createCharacterPerformance} from './character-performance.js';
 import {surfaceFrameGLSL} from './surface-frame.js';
 import {createStagePosition} from './head-motion.js';
-import {actionBodyGLSL,createBodyForm} from './action-body.js';
+import {actionBodyGLSL,actionBodyDisplacement,createBodyForm} from './action-body.js';
 import {createGlassFrosting} from './glass-frosting.js';
 import {starFieldOptions} from './background-settings.js';
 import {actionSurfaceGLSL} from './action-surface.js';
@@ -57,8 +57,9 @@ const vertexShader = /* glsl */`
     float deform=((1.-shell)*.076+shell*.050)*uDeform*(1.-clamp(uActionB.y,0.,1.)*.85);
     float breath=uAudioFluid*(.012+.008*shell);
     float pulse=sin(7.3*p.y-t*2.2+p.x*2.5)*uMid*uAudioFluid*.011;
+    float capsuleKeep=1.-clamp(uBodyFormExtra.z,0.,1.);
     float displacement=actionSurfaceDisplacement(p)+radius*actionBodyDisplacement(p)
-      +deform*waveField(p,t)+uBreath+breath*(.6+.4*sin(t*.85))+pulse;
+      +(deform*waveField(p,t)+uBreath+breath*(.6+.4*sin(t*.85))+pulse)*capsuleKeep;
     return point+p*displacement;
   }
   ${surfaceFrameGLSL}
@@ -337,14 +338,14 @@ const shellFragment = /* glsl */`
       if(mode==12.){
         vec2 point=vLocal.xy+vec2(.00001,0.);
         float radius=length(point);
-        float spin=(1.-smoothstep(.13,.93,radius))*(1.25+.21*sin(age*1.6))*weight;
+        float spin=(1.-smoothstep(.13,.97,radius))*(1.82+.33*sin(age*1.6))*weight;
         vec2 turn=mat2(cos(spin),-sin(spin),sin(spin),cos(spin))*point;
         vec2 warpedUV=clamp(uv+(turn-point)*vec2(uResolution.y/uResolution.x,1.)*.25,vec2(.001),vec2(.999));
         vec3 bentStars=texture2D(uBackground,warpedUV).rgb;
         float disk=smoothstep(.31,.70,radius);
         float bend=radius-.69;
         float arc=smoothstep(-.66,.45,point.x+.24*point.y);
-        vec3 lens=bentStars*(.025+.90*disk)+vec3(.23,.40,1.02)*exp(-bend*bend*26.)*(.10+.27*arc);
+        vec3 lens=bentStars*(.017+.95*disk)+vec3(.25,.52,1.32)*exp(-bend*bend*30.)*(.16+.43*arc);
         col=mix(col,lens,weight*.97);
       }
       if(mode==13.){
@@ -361,6 +362,14 @@ const shellFragment = /* glsl */`
         float lit=smoothstep(.36,.74,cloud);
         col+=mix(vec3(.33,.12,1.22),vec3(1.4,.26,.72),lit)*lit*weight*(.13+rim*.80);
       }
+      if(mode==15.)col+=vec3(.46,.27,1.15)*rim*weight*.39;
+      if(mode==16.){
+        vec3 plume=vLocal-vec3(.08*sin(age*2.1),-.42,.58);
+        float ember=exp(-dot(plume,plume)*3.9);
+        float filaments=.55+.45*fbm3(vLocal*4.5+vec3(0.,-age*.7,age*.14));
+        col+=mix(vec3(1.0,.22,.055),vec3(2.5,1.55,.64),ember)*(ember*1.21+rim*.24)*filaments*uStageEffect.w;
+      }
+      if(mode==17.)col+=vec3(.65,.84,1.45)*rim*uStageEffect.w*.92;
     }
     float height=clamp(vLocal.y*.5+.5,0.,1.);
     float filmFill=mix(uShell,smoothstep(height-.22,height+.22,uShell),uPopReform);
@@ -465,27 +474,42 @@ function make(canvas,{monitor=false}={}){
     return drop;
   });
   scene.add(...hearts,...droplets);
-  const wakeSegments=46,wakePositions=new Float32Array((wakeSegments+1)*6);
-  const wakeUVs=new Float32Array((wakeSegments+1)*4),wakeIndices=[];
-  for(let index=0;index<=wakeSegments;index++){
-    wakeUVs.set([index/wakeSegments,0,index/wakeSegments,1],index*4);
-    const vertex=index*2;
-    if(index<wakeSegments)wakeIndices.push(vertex,vertex+1,vertex+2,vertex+1,vertex+3,vertex+2);
+  const fireflyGeometry=new THREE.PlaneGeometry(2,2);
+  const fireflyMaterial=new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{uLight:{value:0}},
+    vertexShader:`varying vec2 vGlow;void main(){vGlow=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vGlow;uniform float uLight;void main(){
+      float radius=dot(vGlow,vGlow);
+      vec3 tint=mix(vec3(.83,.91,.22),vec3(2.7,2.18,.86),exp(-radius*38.));
+      gl_FragColor=vec4(tint,uLight*(exp(-radius*8.)*.39+exp(-radius*44.)*.76)*(1.-smoothstep(.65,1.,radius)));
+    }`
+  });
+  const fireflies=Array.from({length:24},()=>{
+    const light=new THREE.Mesh(fireflyGeometry,fireflyMaterial);
+    light.visible=false;light.renderOrder=7;scene.add(light);return light;
+  });
+  const wakeSegments=56,wakePositions=new Float32Array(wakeSegments*12);
+  const wakeUVs=new Float32Array(wakeSegments*8),wakeLight=new Float32Array(wakeSegments*4),wakeIndices=[];
+  for(let index=0;index<wakeSegments;index++){
+    wakeUVs.set([0,0,1,0,0,1,1,1],index*8);
+    const vertex=index*4;
+    wakeIndices.push(vertex,vertex+1,vertex+2,vertex+1,vertex+3,vertex+2);
   }
   const wakeGeometry=new THREE.BufferGeometry();
   wakeGeometry.setAttribute('position',new THREE.BufferAttribute(wakePositions,3).setUsage(THREE.DynamicDrawUsage));
   wakeGeometry.setAttribute('uv',new THREE.BufferAttribute(wakeUVs,2));
+  wakeGeometry.setAttribute('wakeLight',new THREE.BufferAttribute(wakeLight,1).setUsage(THREE.DynamicDrawUsage));
   wakeGeometry.setIndex(wakeIndices);
   const wakeMaterial=new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
     uniforms:{uWakeAlpha:{value:0}},
-    vertexShader:`varying vec2 vWake;void main(){vWake=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader:`varying vec2 vWake;uniform float uWakeAlpha;void main(){
-      float across=abs(vWake.y*2.-1.);
-      float feather=1.-smoothstep(.04,1.,across);
-      float filament=.55+.45*sin(vWake.x*17.+vWake.y*18.);
-      vec3 color=mix(vec3(.92,2.15,3.65),vec3(.62,.24,1.65),across);
-      gl_FragColor=vec4(color,uWakeAlpha*feather*filament*pow(clamp(1.-vWake.x,0.,1.),1.35));
+    vertexShader:`attribute float wakeLight;varying vec2 vWake;varying float vLight;void main(){vWake=uv*2.-1.;vLight=wakeLight;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vWake;varying float vLight;uniform float uWakeAlpha;void main(){
+      float radius=dot(vWake,vWake);
+      float profile=exp(-radius*3.8)*(1.-smoothstep(.47,1.,radius));
+      vec3 color=mix(vec3(.92,2.15,3.65),vec3(.62,.24,1.65),smoothstep(.1,.88,abs(vWake.y)));
+      gl_FragColor=vec4(color,uWakeAlpha*vLight*profile);
     }`
   });
   const cometWake=new THREE.Mesh(wakeGeometry,wakeMaterial);
@@ -542,15 +566,18 @@ function make(canvas,{monitor=false}={}){
             vec3 tint=mix(vec3(.25,.12,1.18),vec3(1.47,.31,.78),smoothstep(.35,.8,cloud));
             gl_FragColor=vec4(tint,uStrength*feather*cloud*smoothstep(.10,.40,radius));return;
           }
-          float lobes=.69+.14*sin(angle*7.+.9)+.09*cos(angle*13.)+.045*sin(angle*23.);
-          float billow=1.-smoothstep(lobes*.57,lobes,radius);
-          float turbulence=.57+.23*sin(angle*17.+radius*29.-uAge*5.)+.16*cos(angle*9.-radius*43.+uAge*6.);
-          float rays=pow(.5+.5*sin(angle*19.+1.9*sin(angle*7.)),9.);
-          rays*=smoothstep(.30,.46,radius)*(1.-smoothstep(lobes*.72,1.,radius));
-          float hot=exp(-radius*radius*7.)*(1.-smoothstep(.08,.46,uAge));
-          vec3 color=mix(vec3(.75,.09,.36),vec3(2.6,.95,.22),clamp(hot+billow*.64,0.,1.));
-          color=mix(color,vec3(3.2,2.6,1.65),hot*.72);
-          gl_FragColor=vec4(color,uStrength*(billow*turbulence*.82+rays*.72+hot*.55));
+          float feather=1.-smoothstep(.48,1.,radius);
+          vec2 jet=point/(.68+.52*uAge);
+          float curl=fbm3(vec3(jet*3.2,uAge*.78));
+          float cells=fbm3(vec3(jet*6.7+vec2(curl*1.9,-curl*1.6),uAge*1.44));
+          float petals=.76+.17*cos(angle*6.+curl*4.)+.10*sin(angle*11.-uAge*3.);
+          float billow=exp(-radius*radius*(2.2+2.4*(1.-petals)))*(.15+.85*smoothstep(.22,.77,cells));
+          float tongues=exp(-radius*radius*2.7)*smoothstep(.37,.87,curl+.12*cos(angle*8.+radius*8.));
+          float hot=exp(-radius*radius*12.)*(1.-smoothstep(.06,.40,uAge));
+          float heat=clamp(hot+.66*billow+.40*tongues,0.,1.);
+          vec3 color=mix(vec3(.54,.075,.27),vec3(2.8,1.08,.25),heat);
+          color=mix(color,vec3(3.7,2.92,1.68),hot);
+          gl_FragColor=vec4(color,uStrength*feather*(billow*.84+tongues*.62+hot*.80));
         }
       `
     }));
@@ -575,7 +602,7 @@ function make(canvas,{monitor=false}={}){
   const fillLight=new THREE.DirectionalLight(0x719fff,1.2);fillLight.position.set(3,-1,2);scene.add(fillLight);
   const U={
     uWorldNormal:{value:new THREE.Matrix3()},uWorldToLocal:{value:new THREE.Matrix4()},uLocalToClip:{value:new THREE.Matrix4()},uFaceRadius:{value:.985},uBackground:{value:null},uStudio:{value:studioMap},
-    uActionShape:{value:new THREE.Vector4()},uActionBody:{value:new THREE.Vector4()},uActionBodyTime:{value:0},
+    uActionShape:{value:new THREE.Vector4()},uActionBody:{value:new THREE.Vector4()},uBodyFormExtra:{value:new THREE.Vector3()},uActionBodyTime:{value:0},
     uActionA:{value:new THREE.Vector4()},uActionB:{value:new THREE.Vector4()},uActionTime:{value:0},
     uFlowScale:{value:.8},uFlowCurl:{value:1},uFlowAngle:{value:0},uVoiceEnvelope:{value:0},uVoiceHalo:{value:.7},uFlowTime:{value:0},uAudioFluid:{value:0},uTime:{value:0},uMotion:{value:.7},uLevel:{value:0},uDeform:{value:.42},
     uSurfaceTension:{value:.35},uBreath:{value:0},uSurfaceRoughness:{value:.12},uSurfaceFrosting:{value:0},uIridescence:{value:.2},uRibbonPhase:{value:0},uRibbonWidth:{value:.5},uRibbonIntensity:{value:1},
@@ -648,6 +675,30 @@ function make(canvas,{monitor=false}={}){
   const cavityGeometry=new THREE.SphereGeometry(1,64,32);
   const cavity=new THREE.Mesh(cavityGeometry,cavityMat);
   const orbitGeometry=new THREE.SphereGeometry(1,40,28);
+  const miniaturePositions=orbitGeometry.attributes.position;
+  const miniatureBase=Array.from({length:miniaturePositions.count},(_,index)=>[
+    miniaturePositions.getX(index),miniaturePositions.getY(index),miniaturePositions.getZ(index)
+  ]);
+  let miniatureShape=[0,0,0,0,0,0,0];
+  function updateMiniatureShape(shape,extra){
+    const next=[...shape,...extra];
+    if(next.every((value,index)=>Math.abs(value-miniatureShape[index])<.001))return;
+    miniatureShape=next;
+    const pose={shape,extra,body:[0,0,0,0],time:0};
+    miniatureBase.forEach((point,index)=>{
+      const radius=1+actionBodyDisplacement(point,pose);
+      miniaturePositions.setXYZ(index,point[0]*radius,point[1]*radius,point[2]*radius);
+    });
+    miniaturePositions.needsUpdate=true;
+    orbitGeometry.computeVertexNormals();
+    orbitGeometry.computeBoundingSphere();
+  }
+  const cometNucleusMaterial=new THREE.MeshBasicMaterial({
+    color:new THREE.Color(.82,1.66,2.85),transparent:true,depthWrite:false,
+    blending:THREE.AdditiveBlending
+  });
+  const cometNucleus=new THREE.Mesh(orbitGeometry,cometNucleusMaterial);
+  cometNucleus.visible=false;cometNucleus.renderOrder=7;scene.add(cometNucleus);
   const orbitMaterial=particleGlass(new THREE.Color(.66,.91,1.18),.072);
   const orbitFaceMaterial=new THREE.MeshBasicMaterial({color:new THREE.Color(2.5,2.6,2.8),transparent:true,depthWrite:false});
   const orbitCopies=Array.from({length:8},()=>{
@@ -737,24 +788,26 @@ function make(canvas,{monitor=false}={}){
     resize(number(p.quality,1,.65,1.3));
     orb.rotation.y-=previousActorYaw;orb.rotation.x-=previousActorPitch;
     orb.rotation.z-=previousFlirtTilt;
+    const visualActor=p.visualAction??p.actorAction;
     const t=number(p.time,0,0,1e8),lvl=number(p.level,0);
     const motion=number(p.motion,.55,0,2),intensity=number(p.intensity,.7);
     const performance=characterPerformance.update(p.actorAction,p.actionSurface??1,number(p.frameDelta,.016,0,.06),p.performanceTime);
     const actionSurface=performance.surface;
     U.uActionA.value.fromArray(actionSurface.a);U.uActionB.value.fromArray(actionSurface.b);U.uActionTime.value=actionSurface.time;
     const actionBody=performance.body;
-    const form=bodyForm(p.bodyForm,number(p.frameDelta,.016,0,.06),actionBody);
-    U.uActionShape.value.fromArray(form.shape);U.uActionBody.value.fromArray(actionBody.body);U.uActionBodyTime.value=actionBody.time;
+    const comboWeight=visualActor?.formWeight??visualActor?.weight/(visualActor?.mode==='blend'?.86:1);
+    const form=bodyForm(p.bodyForm,number(p.frameDelta,.016,0,.06),actionBody,visualActor?.form,comboWeight);
+    U.uActionShape.value.fromArray(form.shape);U.uActionBody.value.fromArray(form.body);U.uBodyFormExtra.value.fromArray(form.extra);U.uActionBodyTime.value=actionBody.time;
     const faceHandoff=thinkingFaceHandoff(actionBody.face),faceLight=faceHandoff.normal;
-    const gaze=gazeDriver.update(p.actorAction,number(p.frameDelta,.016,0,.06));
+    const gaze=gazeDriver.update(visualActor,number(p.frameDelta,.016,0,.06));
     U.uStyle.value=number(p.style,0,0,3);
     U.uTime.value=t;U.uMotion.value=motion;U.uLevel.value=lvl;
     const delta=t-(fluidLastTime??t);
     U.uVoiceEnvelope.value=voiceEnvelope.update(number(p.amplitude,lvl),delta);U.uVoiceHalo.value=number(p.voiceHalo,.7);
     // Grow the real back volume; no screen-space disc or fixed-radius glow ring.
     halo.scale.setScalar(.90+number(p.haloSpread,.45)*.40+U.uVoiceEnvelope.value*.065);
-    const effect=stageEffectPose(p.actorAction);
-    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p),action:starActionPose(p.actorAction,effect)});
+    const effect=stageEffectPose(visualActor);
+    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p),action:starActionPose(visualActor,effect)});
     scene.background.set(/^#[0-9a-f]{6}$/i.test(p.backgroundColor)?p.backgroundColor:'#000000');
     U.uFlowScale.value=number(p.flowScale,.8,.3,2);U.uFlowCurl.value=number(p.flowCurl,1,0,2);U.uFlowAngle.value=number(p.flowAngle,0,-180,180)*Math.PI/180;
     const fluid=audioFluid.update(number(p.amplitude,lvl),delta,p.audioFluid!==false,motion,number(p.audioResponse,1,0,2));
@@ -800,7 +853,7 @@ function make(canvas,{monitor=false}={}){
       target[0]=facePose.width;target[1]=1;target[2]=0;target[3]=0;
       target[4]=facePose.curve;target[5]=facePose.opening;target[6]=facePose.bounce;
     }
-    const actor=p.actorAction;
+    const actor=visualActor;
     U.uStageEffect.value.set(effect?.mode??0,effect?.time??0,effect?.weight??0,effect?.cometFlare??effect?.beat??0);
     U.uEffectTravel.value=effect?.travel??0;
     const libraryEmote=actor?.kind==='expression'&&Object.hasOwn(LIBRARY_EMOTES,actor.name)?LIBRARY_EMOTES[actor.name]:null;
@@ -904,18 +957,28 @@ function make(canvas,{monitor=false}={}){
     orb.scale.y*=1+stretch;
     orb.scale.multiplyScalar(1+.042*(effect?.flash??bubble.flash));
     orb.scale.multiplyScalar(1+(effect?.compression??0));
-    const split=effect?.split??0,orbitScale=orb.scale.x;
-    orbitMaterial.uniforms.uVisibility.value=Math.min(1,split*1.6);
-    orbitFaceMaterial.opacity=Math.min(1,split*1.6)*Math.max(.65,U.uFace.value);
+    const split=effect?.split??0,echo=effect?.echo??0,orbitScale=orb.scale.x;
+    const copiesOpacity=split>.001?Math.min(1,split*1.6):echo*.44;
+    orbitMaterial.uniforms.uVisibility.value=copiesOpacity;
+    orbitFaceMaterial.opacity=copiesOpacity*Math.max(.65,U.uFace.value);
     orbitCopies.forEach(({group,features},index)=>{
       group.visible=false;
-      if(split<=.001)return;
+      if(split<=.001&&(echo<=.001||index>=3))return;
       const angle=index*Math.PI/4+effect.time*2.25;
       const radial=(.08+1.37*split)*orbitScale;
       const horizontal=Math.cos(angle)*radial;
-      group.position.set(orb.position.x+horizontal,orb.position.y+.65*Math.sin(angle)*radial+.18*horizontal,orb.position.z+.50*Math.sin(angle)*radial);
-      group.rotation.z=.24*Math.sin(angle);
-      group.scale.setScalar(.28*orbitScale*Math.sqrt(split));
+      if(echo>.001){
+        const lag=(index+1)*.23;
+        const spread=(index+1)*.40;
+        const turn=Math.sin(effect.time*4.1-.55);
+        group.position.set(orb.position.x+spread*echo*turn,orb.position.y+lag*.62,orb.position.z-.34-index*.36);
+        group.rotation.z=-lag*turn;
+        group.scale.setScalar((.76-index*.12)*orbitScale);
+      }else{
+        group.position.set(orb.position.x+horizontal,orb.position.y+.65*Math.sin(angle)*radial+.18*horizontal,orb.position.z+.50*Math.sin(angle)*radial);
+        group.rotation.z=.24*Math.sin(angle);
+        group.scale.setScalar(.28*orbitScale*Math.sqrt(split));
+      }
       features.forEach((copy,featureIndex)=>{
         const source=featureIndex<eyes.length?eyes[featureIndex]:cavity;
         copy.position.copy(source.position);
@@ -925,12 +988,29 @@ function make(canvas,{monitor=false}={}){
       });
     });
     const cometFlare=effect?.cometFlare??0;
+    if(split>.001||echo>.001||cometFlare>.001)updateMiniatureShape(form.base,form.baseExtra);
+    fireflyMaterial.uniforms.uLight.value=effect?.mode===18?effect.particles:0;
+    fireflies.forEach((light,index)=>{
+      light.visible=false;
+      if(effect?.mode!==18)return;
+      const phase=effect.time*(.8+.17*(index%4))+index*2.39996;
+      const rise=(effect.time*(.23+.026*(index%3))+index*.137)%1;
+      const radius=(1.03+.46*Math.sin(Math.PI*rise))*orbitScale;
+      light.position.set(orb.position.x+Math.cos(phase)*radius,orb.position.y+(rise-.46)*2.5*orbitScale,orb.position.z+Math.sin(phase)*.73);
+      const twinkle=.33+.67*(.5+.5*Math.sin(phase*5.7))**2;
+      light.scale.setScalar((.074+.084*twinkle)*Math.sin(Math.PI*rise)*orbitScale);
+    });
     orb.visible=split<.997&&!effect?.cometHidden&&cometFlare<.94;
     if(comet)orb.scale.multiplyScalar(1-.34*cometFlare);
     cometCore.visible=false;
+    cometNucleus.visible=false;
     cometCore.position.copy(orb.position);
     cometCore.scale.setScalar(orb.scale.x*(1.28+.035*Math.max(0,-(effect?.depth??0))));
-    cometCoreMaterial.uniforms.uCoreAlpha.value=effect?.cometHidden?0:cometFlare;
+    const cometLight=effect?.cometHidden?0:cometFlare;
+    cometCoreMaterial.uniforms.uCoreAlpha.value=cometLight*.36;
+    cometNucleusMaterial.opacity=cometLight;
+    cometNucleus.position.copy(orb.position);
+    cometNucleus.scale.copy(orb.scale).multiplyScalar(.80);
     orb.scale.multiplyScalar(Math.max(.002,1-split));
     shockRings.forEach(ring=>{
       const atmosphere=[11,12,14].includes(effect?.mode)?effect.mode:0;
@@ -938,7 +1018,7 @@ function make(canvas,{monitor=false}={}){
       if(atmosphere){
         ring.visible=effect.weight>.001;
         ring.material.uniforms.uAge.value=effect.time;
-        ring.material.uniforms.uStrength.value=effect.weight*(atmosphere===11?.57:atmosphere===12?.84:.52);
+        ring.material.uniforms.uStrength.value=effect.weight*(atmosphere===11?.57:atmosphere===12?1.15:.52);
         ring.position.set(orb.position.x,orb.position.y,orb.position.z-.68);
         ring.rotation.z=atmosphere===11?-.14:atmosphere===12?-.31:.19;
         ring.scale.setScalar((atmosphere===11?2.15:atmosphere===12?2.18:1.58+.72*(1-Math.exp(-effect.time*1.8)))*orb.scale.x);
@@ -955,7 +1035,7 @@ function make(canvas,{monitor=false}={}){
         :effect.weight*Math.min(1,age/.026)*(1-progress)**1.65;
       ring.position.set(orb.position.x,orb.position.y,orb.position.z-.37);
       ring.rotation.z=.14+age*.16;
-      ring.scale.setScalar((1.16+2.18*(1-Math.exp(-(assembling?progress:age)*7)))*orb.scale.x);
+      ring.scale.setScalar((1.20+2.60*(1-Math.exp(-(assembling?progress:age)*6.5)))*orb.scale.x);
     });
     cometWake.visible=false;
     wakeMaterial.uniforms.uWakeAlpha.value=0;
@@ -964,16 +1044,28 @@ function make(canvas,{monitor=false}={}){
       const start=Math.max(.08,effect.time-1.06);
       const width=orb.scale.x;
       wakeMaterial.uniforms.uWakeAlpha.value=end>start?.68*effect.particles:0;
-      for(let index=0;index<=wakeSegments;index++){
-        const fraction=index/wakeSegments,stampTime=THREE.MathUtils.lerp(end,start,fraction);
+      const step=Math.max(0,end-start)/(wakeSegments-1);
+      for(let index=0;index<wakeSegments;index++){
+        const fraction=index/(wakeSegments-1),stampTime=THREE.MathUtils.lerp(end,start,fraction);
         const stamp=projectComet(cometPath(stampTime),effect.weight);
-        const ahead=cometPath(Math.min(COMET_EXIT,stampTime+.015)),behind=cometPath(stampTime-.015);
-        const heading=Math.atan2(ahead.y-behind.y,(ahead.x-behind.x)*camera.aspect);
-        const span=(.23+.53*Math.sin(fraction*Math.PI*.85))*width;
+        const ahead=cometPath(Math.min(COMET_EXIT,stampTime+.02)),behind=cometPath(stampTime-.02);
+        const tangentX=(ahead.x-behind.x)*camera.aspect,tangentY=ahead.y-behind.y;
+        const heading=Math.atan2(tangentY,tangentX);
+        const span=(.30+.52*Math.sin(fraction*Math.PI*.86))*width;
+        const spacing=Math.hypot(tangentX,tangentY)*step/.04*(camera.position.z-position.z-stamp.z)*Math.tan(camera.fov*Math.PI/360)*effect.weight;
+        const length=Math.max(span*.80,spacing*2.6);
+        const horizontal=Math.cos(heading),vertical=Math.sin(heading);
+        const alongX=horizontal*length,alongY=vertical*length,sideX=-vertical*span,sideY=horizontal*span;
         const x=position.x+stamp.x,y=position.y+stamp.y,z=position.z+stamp.z-.27;
-        wakePositions.set([x-Math.sin(heading)*span,y+Math.cos(heading)*span,z,x+Math.sin(heading)*span,y-Math.cos(heading)*span,z],index*6);
+        wakePositions.set([
+          x-alongX-sideX,y-alongY-sideY,z,x+alongX-sideX,y+alongY-sideY,z,
+          x-alongX+sideX,y-alongY+sideY,z,x+alongX+sideX,y+alongY+sideY,z
+        ],index*12);
+        const light=Math.min(.58,spacing/length*1.4)*(1-fraction)**1.24;
+        wakeLight.fill(light,index*4,index*4+4);
       }
       wakeGeometry.attributes.position.needsUpdate=true;
+      wakeGeometry.attributes.wakeLight.needsUpdate=true;
     }
     heartMaterial.uniforms.uVisibility.value=bubble.hearts;
     hearts.forEach((heart,index)=>{
@@ -996,7 +1088,7 @@ function make(canvas,{monitor=false}={}){
       if(effect){
         const phase=angle+effect.time*(index%2?2.0:-1.5);
         const twinkle=.5+.5*Math.sin(effect.time*8+index*2.4);
-        const count=effect.mode===3?0:42;
+        const count=effect.mode===6?42:0;
         drop.material.uniforms.uVisibility.value=index<count?effect.particles:0;
         if(effect.mode===6){
           const distance=(1.21+.21*Math.sin(index*3.7+effect.time*2))*orb.scale.x;
@@ -1035,16 +1127,20 @@ function make(canvas,{monitor=false}={}){
     renderer.clear();
     inner.visible=false;faceRig.visible=false;
     glass.visible=true;halo.visible=U.uVoiceHalo.value>.001;
-    orbitCopies.forEach(({group})=>{group.visible=split>.001;});
+    orbitCopies.forEach(({group},index)=>{group.visible=split>.001||(echo>.001&&index<3);});
+    fireflies.forEach(light=>{light.visible=fireflyMaterial.uniforms.uLight.value>.001;});
     cometWake.visible=effect?.mode===3&&wakeMaterial.uniforms.uWakeAlpha.value>.001;
     cometCore.visible=cometCoreMaterial.uniforms.uCoreAlpha.value>.001;
+    cometNucleus.visible=cometNucleusMaterial.opacity>.001;
     droplets.forEach(drop=>{drop.visible=drop.material.uniforms.uVisibility.value>.001;});
     renderer.render(scene,camera);
     inner.visible=true;faceRig.visible=U.uFace.value>.006;
     postProcessing.render({bloomStrength:number(p.bloomStrength,.48,0,1.5),flareStrength:number(p.flareStrength,.18),threshold:1.2,chromatic:number(p.crtChromatic,0)});
   }
   function dispose(){
+    fireflyGeometry.dispose();fireflyMaterial.dispose();
     cometCoreGeometry.dispose();cometCoreMaterial.dispose();
+    cometNucleusMaterial.dispose();
     orbitGeometry.dispose();orbitMaterial.dispose();orbitFaceMaterial.dispose();
     wakeGeometry.dispose();wakeMaterial.dispose();
     shockGeometry.dispose();shockRings.forEach(ring=>ring.material.dispose());

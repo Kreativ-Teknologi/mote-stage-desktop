@@ -9,7 +9,6 @@ const clamp=(value,min=0,max=1)=>Math.min(max,Math.max(min,numeric(value)));
 export const ACTION_SURFACE_PROFILES=Object.freeze({
   neutral:Object.freeze({calm:1}),
   curious:Object.freeze({ripple:.55,asymmetry:.95,swirl:.12}),
-  joy:Object.freeze({swell:.22,ripple:.12,asymmetry:.05}),
   angry:Object.freeze({spike:1,ripple:.12,shiver:.20}),
   sad:Object.freeze({droop:.30,swell:.10,calm:.60}),
   afraid:Object.freeze({shiver:1,spike:.16,ripple:.15}),
