@@ -15,7 +15,13 @@ export const LIBRARY_EMOTES={
   pout:{label:'Pout',icon:'⌣',hint:'A little pinched mouth and lowered gaze',face:[.91,.70,-.17,-.05,.135,0,0],aperture:.088,width:.115,pitch:.11,tilt:-.085},
   smirk:{label:'Smirk',hint:'A crooked half-smile and a knowing glance',face:[1.03,.69,.13,.01,-.11,0,0],aperture:.068,width:.19,eyes:[.91,1.06]},
   squint:{label:'Squint',hint:'Eyes narrow as Bubbles leans in to inspect',face:[1.22,.33,0,.022,-.018,0,0],aperture:.047,width:.14},
-  disgust:{label:'Disgust',hint:'Bubbles recoils and pulls one mouth corner down',face:[1.03,.62,-.29,-.014,.087,0,0],aperture:.112,width:.167,eyes:[.88,1.12]}
+  disgust:{label:'Disgust',hint:'Bubbles recoils and pulls one mouth corner down',face:[1.03,.62,-.29,-.014,.087,0,0],aperture:.112,width:.167,eyes:[.88,1.12]},
+  deadpan:{label:'Deadpan',hint:'An unamused sideways glance with a flat, closed mouth',face:[1.12,.38,0,-.015,0,0,0],aperture:.016,width:.17},
+  doubleTake:{label:'Double Take',hint:'Look away, then snap back with wide eyes and a gasp',face:[.98,.77,0,.02,0,0,0],aperture:.038,width:.15},
+  sigh:{label:'Sigh',hint:'A slow inhale followed by a long exhale and drooping lids',face:[1,.58,-.08,.015,.025,0,0],aperture:.05,width:.15},
+  wince:{label:'Wince',hint:'Squeeze the eyes shut and pull the mouth into a tight grimace',face:[1.13,.58,.30,0,.052,0,0],aperture:.05,width:.19},
+  tender:{label:'Tender',hint:'A small, warm smile with soft eyes and a gentle tilt',face:[1.03,.53,.08,.03,-.102,0,0],aperture:.049,width:.18},
+  stifledLaugh:{label:'Stifled Laugh',hint:'Two tiny giggles escape through a tightly held grin',face:[1.12,.55,.09,.025,-.15,0,0],aperture:.041,width:.20}
 };
 Object.assign(LIBRARY_EMOTES,{
   explosion:{label:'Explosion',icon:'✹',hint:'The glass compresses, then erupts in a jagged flash and expanding plume',effect:1},
@@ -173,6 +179,30 @@ export function libraryEmoteMotion(name,elapsed){
     case 'disgust': {
       const flinch=pulse(.10,.40,1.14),turn=ramp(.1,.62);
       return {pitch:-.28*flinch,yaw:-.22*turn,lids:.34*flinch,jaw:.088*flinch,skew:-.039*turn};
+    }
+    case 'deadpan': {
+      const glance=ramp(.38,.84)*(1-ramp(1.55,2.10));
+      return {yaw:-.21*glance,eyeBias:.14*glance,lids:.83*pulse(.92,1.06,1.20)};
+    }
+    case 'doubleTake': {
+      const away=pulse(.08,.50,.82),startle=pulse(.64,.90,1.78);
+      return {yaw:.39*away-.10*startle,pitch:-.15*startle,tilt:.10*away,eyeHeight:.52*startle,jaw:.19*startle};
+    }
+    case 'sigh': {
+      const inhale=pulse(.08,.70,1.24),exhale=pulse(.71,1.42,2.74);
+      return {pitch:-.16*inhale+.20*exhale,lift:.04*inhale-.07*exhale,lids:.68*exhale,jaw:.04*inhale+.09*exhale};
+    }
+    case 'wince': {
+      const reflex=pulse(.07,.30,.94),aftershock=pulse(.92,1.12,1.65);
+      return {pitch:-.20*reflex,tilt:.12*reflex,lids:1.26*reflex+.39*aftershock,jaw:.036*reflex,skew:.035*(reflex+aftershock)};
+    }
+    case 'tender': {
+      const settle=ramp(.18,.94);
+      return {tilt:-.13*settle,pitch:.06*settle,lids:.26*pulse(.66,1.28,1.96),eyeLift:.026*settle};
+    }
+    case 'stifledLaugh': {
+      const giggle=pulse(.28,.48,.71)+.8*pulse(.79,1.01,1.27);
+      return {pitch:.11*giggle,lift:.045*giggle,lids:.72*giggle,jaw:.077*giggle,skew:.018*ramp(.2,.68)};
     }
     case 'delight': {
       const hop=pulse(.06,.33,.79)+.65*pulse(.78,1.02,1.44);

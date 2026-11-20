@@ -127,7 +127,8 @@ const noiseGLSL = /* glsl */`
 
 const coreFragment = /* glsl */`
   uniform float uFlowTime,uFlowScale,uFlowCurl,uFlowAngle;
-  uniform float uTime,uMotion,uLevel,uPalette,uDepth,uBass,uMid,uTreble,uStyle,uFace,uShell;
+  uniform float uTime,uMotion,uLevel,uAbyss,uDepth,uBass,uMid,uTreble,uFace,uShell;
+  uniform vec3 uMaterial;
   varying vec3 vLocal,vWorld,vNormalW;
   varying float vWarp;
   ${noiseGLSL}
@@ -160,14 +161,14 @@ const coreFragment = /* glsl */`
     c*=innerShadow*edgeDepth*volumeDepth;
     float lattice=smoothstep(.61,.86,twist)*smoothstep(.48,.8,haze);
     c+=vec3(.09,.23,.34)*lattice*(.12+.18*uDepth)*edgeDepth;
-    if(uPalette>2.5){
+    if(uAbyss>.0){
       float yA=.08*sin(p.x*4.6+t*.44)+.12*sin(p.z*3.8-t*.32);
       float yB=-.09*sin(p.x*4.3-t*.28)+.12*sin(p.z*4.4+t*.41);
       float lineA=exp(-pow((p.y-yA)/.135,2.));
       float lineB=exp(-pow((p.y-yB)/.16,2.));
       vec3 ca=mix(vec3(.02,.84,1.),vec3(.29,.44,1.),.5+.5*p.x);
       vec3 cb=mix(vec3(.96,.16,.6),vec3(.56,.31,.99),.5+.5*p.x);
-      c+=ca*lineA*(.48+.24*haze)+cb*lineB*(.4+.18*haze);
+      c+=(ca*lineA*(.48+.24*haze)+cb*lineB*(.4+.18*haze))*uAbyss;
     }
     // A soft traveling caustic wave exists INSIDE the glass.
     float caustic=exp(-34.*pow(p.y-.14*sin(p.x*5.6+p.z*2.8+t*.58),2.));
@@ -178,11 +179,12 @@ const coreFragment = /* glsl */`
     float innerSpec=pow(max(dot(reflect(-normalize(vec3(-.4,.65,.55)),N),V),0.),70.);
     c+=vec3(.52,.7,.98)*innerSpec*.12;
     vec3 neutralGlass=vec3(.009,.019,.025);
-    if(uStyle>1.5)neutralGlass=vec3(.018,.028,.032);
-    if(uStyle>.5&&uStyle<1.5)c=mix(vec3(dot(c,vec3(.21,.72,.07))),c,.08)*.55;
-    c=mix(c,neutralGlass,clearCenter*(uStyle>1.5?.88:.97));
+    float coated=uMaterial.y+uMaterial.z;
+    neutralGlass=mix(neutralGlass,vec3(.018,.028,.032),coated);
+    c=mix(c,mix(vec3(dot(c,vec3(.21,.72,.07))),c,.08)*.55,uMaterial.x);
+    c=mix(c,neutralGlass,clearCenter*mix(.97,.88,coated));
     c=vec3(.001,.002,.003)+c*.025*(1.-clearCenter*.95);
-    if(uStyle>1.5)c*=vec3(1.25,1.,.82);
+    c*=mix(vec3(1.),vec3(1.25,1.,.82),coated);
     vec3 behind=texture2D(uBackground,gl_FragCoord.xy/uResolution).rgb;
     gl_FragColor=vec4(max(c,vec3(0.))*uShell+behind*mix(1.,.98,uShell),1.);
   }
@@ -195,8 +197,9 @@ const shellFragment = /* glsl */`
   uniform mat4 uWorldToLocal,uLocalToClip;uniform mat3 uWorldNormal;
   uniform sampler2D uInner,uStudio,uFrostedInner,uBackground;
   uniform vec2 uResolution;
-  uniform float uTime,uMotion,uLevel,uPalette,uGlass,uRefraction,uDispersion;
-  uniform float uRipple,uDepth,uBass,uMid,uTreble,uStyle,uFace,uEdgeGlow,uEdgeSoftness,uSurfaceRoughness,uSurfaceFrosting,uIridescence,uRibbonPhase,uRibbonWidth,uRibbonIntensity;
+  uniform float uTime,uMotion,uLevel,uGlass,uRefraction,uDispersion;
+  uniform vec3 uMaterial;
+  uniform float uRipple,uDepth,uBass,uMid,uTreble,uFace,uEdgeGlow,uEdgeSoftness,uSurfaceRoughness,uSurfaceFrosting,uIridescence,uRibbonPhase,uRibbonWidth,uRibbonIntensity;
   varying vec3 vLocal,vWorld,vNormalW;
   varying float vWarp;
   ${noiseGLSL}
@@ -255,21 +258,21 @@ const shellFragment = /* glsl */`
     // Clear glass has a clear center, even with strong reflection or ripples.
     // Keep the full studio treatment only for the explicitly metallic material.
     float reflectionWindow=glassReflectionWindow(facing);
-    if(uStyle>.5&&uStyle<1.5)reflectionWindow=1.;
+    reflectionWindow=mix(reflectionWindow,1.,uMaterial.x);
     environment*=reflectionWindow;
     float fresnel=.04+.96*pow(1.-nv,5.);
     vec3 glassTint=paletteColor(.22);
-    float reflectivity=uStyle>.5&&uStyle<1.5?.22+.76*pow(1.-nv,1.6):fresnel;
+    float reflectivity=mix(fresnel,.22+.76*pow(1.-nv,1.6),uMaterial.x);
     // Depth changes transmitted contrast in every glass material, not just Luminous.
     vec3 transmission=through*exp(-uDepth*vec3(.72,.52,.35)*(1.-nv*.7));
     vec3 col=transmission*(1.-reflectivity*.68*uGlass)+environment*(2.18*uGlass)*reflectivity;
     col+=glassTint*pow(1.-nv,5.)*.125*uGlass;
-    if(uStyle>1.5&&uStyle<2.5){
+    if(uMaterial.y>0.){
       // Companion is a broad, warm satin coating; Ethereal stays optically clear.
       vec3 satin=paletteColor(.12)*pow(1.-nv,2.2)*.185*uGlass;
-      col=transmission*(1.-reflectivity*.42*uGlass)*vec3(1.025,1.,.975)+environment*reflectivity*uGlass*.48+satin;
+      col=mix(col,transmission*(1.-reflectivity*.42*uGlass)*vec3(1.025,1.,.975)+environment*reflectivity*uGlass*.48+satin,uMaterial.y);
     }
-    if(uStyle>2.5){
+    if(uMaterial.z>0.){
       vec3 p=vLocal;float cs=cos(uFlowAngle),sn=sin(uFlowAngle);p.xy=mat2(cs,-sn,sn,cs)*p.xy;p*=uFlowScale;
       float slow=uRibbonPhase;
       float flow=ribbonFlow(p);
@@ -280,17 +283,18 @@ const shellFragment = /* glsl */`
       vec3 pastel=paletteColor(hue);
       vec3 cyan=paletteColor(.64);
       pastel=mix(pastel,cyan,exp(-pow((p.x+.6)/.25,2.))*.65);
-      col=vec3(.001,.001,.002)+pastel*(ribbon*1.12+veil*.025)*uRibbonIntensity*(.10+.9*side);
-      col+=paletteColor(.12)*pow(1.-nv,3.)*.24;
-      col+=paletteColor(.83)*ribbon*side*pow(1.-nv,1.4)*.32*uRibbonIntensity;
+      vec3 luminous=vec3(.001,.001,.002)+pastel*(ribbon*1.12+veil*.025)*uRibbonIntensity*(.10+.9*side);
+      luminous+=paletteColor(.12)*pow(1.-nv,3.)*.24;
+      luminous+=paletteColor(.83)*ribbon*side*pow(1.-nv,1.4)*.32*uRibbonIntensity;
       float faceZone=exp(-pow(p.x/.60,4.)-pow((p.y+.03)/.46,4.))*uFace;
-      col=(col*(1.-faceZone*.72)+through*(1.-.18*uDepth))*(1.+.22*uLevel);
-      col+=environment*fresnel*uGlass*(.18+.85*edgeLens)*mix(1.,.72,uEdgeSoftness);
+      luminous=(luminous*(1.-faceZone*.72)+through*(1.-.18*uDepth))*(1.+.22*uLevel);
+      luminous+=environment*fresnel*uGlass*(.18+.85*edgeLens)*mix(1.,.72,uEdgeSoftness);
+      col=mix(col,luminous,uMaterial.z);
     }
-    if(uStyle<2.5){
+    if(uMaterial.z<1.){
       vec3 p=vLocal;float cs=cos(uFlowAngle),sn=sin(uFlowAngle);p.xy=mat2(cs,-sn,sn,cs)*p.xy;p*=uFlowScale;
       float sheet=exp(-pow(ribbonFlow(p)/(mix(.16,.43,uDepth)*mix(.45,1.55,uRibbonWidth)),2.));
-      col+=paletteColor(.5+.5*sin(p.y*3.1-p.x*2.6+uRibbonPhase*.8))*sheet*uRibbonIntensity*.34*pow(1.-facing,.8);
+      col+=paletteColor(.5+.5*sin(p.y*3.1-p.x*2.6+uRibbonPhase*.8))*sheet*uRibbonIntensity*.34*pow(1.-facing,.8)*(1.-uMaterial.z);
     }
     float film=.5+.5*sin(nv*8.+n*2.-uRibbonPhase*.6);
     col+=paletteColor(film)*uIridescence*pow(1.-facing,1.7)*.42;
@@ -606,7 +610,7 @@ function make(canvas,{monitor=false}={}){
     uActionA:{value:new THREE.Vector4()},uActionB:{value:new THREE.Vector4()},uActionTime:{value:0},
     uFlowScale:{value:.8},uFlowCurl:{value:1},uFlowAngle:{value:0},uVoiceEnvelope:{value:0},uVoiceHalo:{value:.7},uFlowTime:{value:0},uAudioFluid:{value:0},uTime:{value:0},uMotion:{value:.7},uLevel:{value:0},uDeform:{value:.42},
     uSurfaceTension:{value:.35},uBreath:{value:0},uSurfaceRoughness:{value:.12},uSurfaceFrosting:{value:0},uIridescence:{value:.2},uRibbonPhase:{value:0},uRibbonWidth:{value:.5},uRibbonIntensity:{value:1},
-    uEdgeSoftness:{value:.65},uFeatureSoftness:{value:.55},uEdgeGlow:{value:.7},uStyle:{value:0},uPalette:{value:1},uFace:{value:.23},uGlass:{value:.75},uShell:{value:1},
+    uEdgeSoftness:{value:.65},uFeatureSoftness:{value:.55},uEdgeGlow:{value:.7},uMaterial:{value:new THREE.Vector3()},uAbyss:{value:0},uFace:{value:.23},uGlass:{value:.75},uShell:{value:1},
     uRefraction:{value:.58},uDispersion:{value:.28},uDepth:{value:.66},uPopFlash:{value:0},uPopReform:{value:0},uStageEffect:{value:new THREE.Vector4()},uEffectTravel:{value:0},
     uRipple:{value:.45},uBass:{value:0},uMid:{value:0},uTreble:{value:0},
     uResolution:{value:new THREE.Vector2(2,2)},uInner:{value:null},uFrostedInner:{value:null}
@@ -800,15 +804,15 @@ function make(canvas,{monitor=false}={}){
     U.uActionShape.value.fromArray(form.shape);U.uActionBody.value.fromArray(form.body);U.uBodyFormExtra.value.fromArray(form.extra);U.uActionBodyTime.value=actionBody.time;
     const faceHandoff=thinkingFaceHandoff(actionBody.face),faceLight=faceHandoff.normal;
     const gaze=gazeDriver.update(visualActor,number(p.frameDelta,.016,0,.06));
-    U.uStyle.value=number(p.style,0,0,3);
+    U.uMaterial.value.fromArray(p.material??[1,2,3].map(style=>Number(style===p.style)));
     U.uTime.value=t;U.uMotion.value=motion;U.uLevel.value=lvl;
     const delta=t-(fluidLastTime??t);
     U.uVoiceEnvelope.value=voiceEnvelope.update(number(p.amplitude,lvl),delta);U.uVoiceHalo.value=number(p.voiceHalo,.7);
     // Grow the real back volume; no screen-space disc or fixed-radius glow ring.
     halo.scale.setScalar(.90+number(p.haloSpread,.45)*.40+U.uVoiceEnvelope.value*.065);
     const effect=stageEffectPose(visualActor);
-    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p),action:starActionPose(visualActor,effect)});
-    scene.background.set(/^#[0-9a-f]{6}$/i.test(p.backgroundColor)?p.backgroundColor:'#000000');
+    if(p.backgroundLinear)scene.background.fromArray(p.backgroundLinear);
+    else scene.background.set(/^#[0-9a-f]{6}$/i.test(p.backgroundColor)?p.backgroundColor:'#000000');
     U.uFlowScale.value=number(p.flowScale,.8,.3,2);U.uFlowCurl.value=number(p.flowCurl,1,0,2);U.uFlowAngle.value=number(p.flowAngle,0,-180,180)*Math.PI/180;
     const fluid=audioFluid.update(number(p.amplitude,lvl),delta,p.audioFluid!==false,motion,number(p.audioResponse,1,0,2));
     fluidLastTime=t;U.uFlowTime.value=fluid.phase;U.uAudioFluid.value=fluid.level;
@@ -820,7 +824,8 @@ function make(canvas,{monitor=false}={}){
     U.uGlass.value=number(p.glass,.75);
     U.uEdgeGlow.value=number(p.edgeGlow,.7);
     U.uEdgeSoftness.value=number(p.edgeSoftness,.65);U.uFeatureSoftness.value=number(p.featureSoftness,.55);
-    U.uPalette.value=number(p.palette,1,0,3);applyPalette(U,U.uPalette.value,p.customColors,number(p.hueShift,0,-180,180),number(p.colorSaturation,1,0,2),number(p.colorGain,1,0,2));
+    U.uAbyss.value=p.abyss??Number(p.palette===3);applyPalette(U,p.palette,p.customColors,number(p.hueShift,0,-180,180),number(p.colorSaturation,1,0,2),number(p.colorGain,1,0,2),p.colors);
+    starField.update({time:t,pixelRatio:renderer.getPixelRatio(),...starFieldOptions(p),resolvedColors:p.starLinearColors,followMix:p.starFollowMix,action:starActionPose(visualActor,effect)});
     U.uFace.value=number(p.face,.23);
     U.uRefraction.value=number(p.refraction,.58);
     U.uDispersion.value=number(p.dispersion,.28);

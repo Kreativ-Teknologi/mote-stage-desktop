@@ -1,3 +1,5 @@
+import {createLookTransition} from './look-transition.js';
+import {setupActorScript} from './actor-script.js';
 import {createShowClock} from './show-clock.js';
 import {createActionSound} from './action-sound.js';
 import {createEmoteLayout,layoutActionKind} from './emote-layout.js';
@@ -76,6 +78,8 @@ import './orb-renderer.js';
   const actorActions=createActorActionPlayer();
   const actionSound=STAGE_MODE?null:createActionSound();
   const previewActions=createActorActionPlayer();
+  const blendLiveLook=createLookTransition();
+  const blendPreviewLook=createLookTransition();
   let emotePreviewRenderer,previewBodyForm;
   let cameraRequested=false,trackingTestUntil=0;
   let tracking=null,trackingAt=0,frozenTracking=null,lastTrackingSend=0;
@@ -397,6 +401,7 @@ import './orb-renderer.js';
   let emoteLayout,quickLooks;
   function setupConsole(){
     setupNdiOutput();
+    setupActorScript(notify);
     calibrationUI=createCalibrationUI({webcam,notify});
     const selectTab=name=>{
       document.body.dataset.tab=name;
@@ -556,7 +561,11 @@ import './orb-renderer.js';
     });
     appearanceUI=createAppearanceUI({getState:()=>state,setState,notify,onPresetsChange:()=>{quickLooks?.update();emoteLayout.updateLooks();}});
     emoteLayout.updateLooks();
-    quickLooks=createQuickLooks({rail:id('actorQuickLooks'),editor:id('quickLookEditor'),list:appearanceUI.list,load:appearanceUI.loadPreset,
+    quickLooks=createQuickLooks({rail:id('actorQuickLooks'),editor:id('quickLookEditor'),list:appearanceUI.list,load:presetId=>{
+      const cue=actorActions.sample();
+      state.quickLookOverride=cue?{id:cue.id,phase:cue.phaseIndex??0}:null;
+      if(!appearanceUI.loadPreset(presetId))broadcastState();
+    },
       onEdit:()=>selectTab('emotes'),keyInUse:emoteLayout.usesKey,notify,onLookSelect:emoteLayout.selectLook,onAssignmentsChange:emoteLayout.updateLooks});
     emoteLayout.updateLooks();
     renderCues();updateConsole();
@@ -566,6 +575,7 @@ import './orb-renderer.js';
     const target=e.target,key=e.key.toLowerCase();
     if(!STAGE_MODE&&key==='escape'){releaseActorAction();return;}
     if(target instanceof Element && target.closest('input,select,textarea,[contenteditable]'))return;
+    if(target?.id==='actorScriptText'&&(e.code==='Space'||e.key.startsWith('Arrow')))return;
     if(target instanceof Element && target.closest('button')&&(e.code==='Space'||e.key==='Enter'||e.key.startsWith('Arrow')))return;
     if(STAGE_MODE){if(key==='f'){e.preventDefault();requestFullscreen();}return;}
     const shape=document.body.dataset.tab==='emotes'?null:emoteLayout?.shapeForKey(key);
@@ -762,12 +772,19 @@ import './orb-renderer.js';
       const caption=action?ACTOR_LABELS[action.name]:'Click an emote';
       const label=id('emotePreviewName');
       if(label.textContent!==caption)label.textContent=caption;
-      const previewLook=previewActions.visual(now)?.appearance;
-      emotePreviewRenderer?.draw({...getRenderSettings(previewLook?{...state,...previewLook}:state),bodyForm:previewBodyForm??state.bodyForm,time:now/1000,emotion:0,blink:clamp(blinkAmt),
-        frameDelta:Math.min(.06,monitorDelta),performanceTime:showClock.sample(now),actorAction:action,visualAction:previewActions.visual(now),actorHeadOffset:actorGesturePose(previewActions.visual(now)),actionSurface:state.actionSurface});
-    }else orb?.draw({...getRenderSettings(actorActions.visual(now)?.appearance?{...state,...actorActions.visual(now).appearance}:state),...(state.freeze?frozenPose:pose),freeze:state.freeze,
-      performanceTime:showClock.sample(now),frameDelta:STAGE_MODE?dt:Math.min(.06,monitorDelta),actorAction,visualAction:actorActions.visual(now),actionSurface:state.actionSurface,actorHeadOffset:actorGesturePose(actorActions.visual(now),(state.freeze?frozenPose:pose).head),
-      crtChromatic:Math.sin(Math.PI*clamp((now-powerTransitionAt)/850))});monitorDelta=0;} 
+      const visual=previewActions.visual(now);
+      const previewLook=visual?.appearance;
+      emotePreviewRenderer?.draw({...blendPreviewLook(getRenderSettings({...state,...previewLook}),now),bodyForm:previewBodyForm??state.bodyForm,time:now/1000,emotion:0,blink:clamp(blinkAmt),
+        frameDelta:Math.min(.06,monitorDelta),performanceTime:showClock.sample(now),actorAction:action,visualAction:visual,actorHeadOffset:actorGesturePose(visual),actionSurface:state.actionSurface});
+    }else {
+      const visual=actorActions.visual(now);
+      const override=state.quickLookOverride;
+      const appearance=override?.id===visual?.id&&override?.phase===(visual?.phaseIndex??0)?null:visual?.appearance;
+      orb?.draw({...blendLiveLook(getRenderSettings({...state,...appearance}),now),...(state.freeze?frozenPose:pose),freeze:state.freeze,
+        performanceTime:showClock.sample(now),frameDelta:STAGE_MODE?dt:Math.min(.06,monitorDelta),actorAction,visualAction:visual,actionSurface:state.actionSurface,actorHeadOffset:actorGesturePose(visual,(state.freeze?frozenPose:pose).head),
+        crtChromatic:Math.sin(Math.PI*clamp((now-powerTransitionAt)/850))});
+    }
+    monitorDelta=0;}
 
     if(assets.base){
       const rig=id('customRig');

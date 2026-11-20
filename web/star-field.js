@@ -54,14 +54,16 @@ export function createStarField(THREE,avatarPaletteUniforms=null){
     uniforms.sizeRange.value.set(p.minSize,p.maxSize);uniforms.depth.value=p.depth;uniforms.twinkle.value=p.twinkle;uniforms.glow.value=p.glow;
     uniforms.twinklePhase.value+=dt*p.twinkleSpeed;uniforms.spread.value=p.spread;uniforms.softness.value=p.softness;
     colorPhase=wrap(colorPhase+dt*p.colorSpeed*.04,1);
-    if(p.followAvatar&&avatarPaletteUniforms){
+    const follow=avatarPaletteUniforms?finite(input.followMix,Number(p.followAvatar),0,1):0;
+    applyPalette(paletteUniforms,p.palette,p.colors,p.hue,p.saturation,1,input.resolvedColors);
+    uniforms.uPalettePhase.value=colorPhase;uniforms.uDynamicHue.value=0;uniforms.uDynamicGain.value=1;
+    if(follow>0){
       for(const [key,target] of Object.entries(paletteUniforms)){
         const source=avatarPaletteUniforms[key];if(!source)continue;
-        if(target.value?.copy)target.value.copy(source.value);else target.value=source.value;
+        if(follow<1&&target.value?.lerp)target.value.lerp(source.value,follow);
+        else if(target.value?.copy)target.value.copy(source.value);
+        else target.value=follow===1?source.value:target.value+(source.value-target.value)*follow;
       }
-    }else{
-      applyPalette(paletteUniforms,p.palette,p.colors,p.hue,p.saturation);
-      uniforms.uPalettePhase.value=colorPhase;uniforms.uDynamicHue.value=0;uniforms.uDynamicGain.value=1;
     }
     geometry.setDrawRange(0,p.count);points.visible=p.amount>.001&&p.count>0;
   },dispose(){geometry.dispose();material.dispose();}};

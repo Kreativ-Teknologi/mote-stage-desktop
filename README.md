@@ -32,7 +32,7 @@ The development build has no Apple Developer ID signature or notarization. macOS
 
 The script creates an x64 installer in `release/`, installs for your current user under `%LOCALAPPDATA%\Programs\MOTE Stage`, and launches the app. No administrator installation is requested. Close an existing MOTE Stage instance before rebuilding. The CMD launcher allows its bundled PowerShell script to run for that process only; it does not change your machine's execution policy. Follow your organization's script policy on managed computers.
 
-Copy `MOTE-Stage-Setup-1.21.0-x64.exe` from `release/` to another supported Windows x64 computer to install and run offline. The installer is unsigned, so Windows may show an unrecognized-publisher notice. Signing is a separate distribution step.
+Copy `MOTE-Stage-Setup-1.22.0-x64.exe` from `release/` to another supported Windows x64 computer to install and run offline. The installer is unsigned, so Windows may show an unrecognized-publisher notice. Signing is a separate distribution step.
 
 ## Appearance treatments
 

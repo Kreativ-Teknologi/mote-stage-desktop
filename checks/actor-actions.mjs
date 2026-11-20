@@ -14,6 +14,14 @@ for(const name of ['smirk','squint','disgust']){
   assert.ok(makeActorAction('expression',name,4,'blend',0,name));
   assert.ok(Object.values(libraryEmoteMotion(name,450)).some(value=>Math.abs(value)>.1));
 }
+for(const [name,peak] of Object.entries({deadpan:900,doubleTake:490,sigh:1410,wince:300,tender:950,stifledLaugh:480})){
+  const cue=makeActorAction('expression',name,4,'blend',0,name);
+  assert.equal(cue?.name,name);
+  const motion=libraryEmoteMotion(name,peak);
+  assert.ok(Object.values(motion).every(Number.isFinite));
+  assert.ok(Object.values(motion).some(value=>Math.abs(value)>.1),name+' has a visible beat');
+  assert.ok(Object.values(libraryEmoteMotion(name,0)).every(value=>value===0),name+' eases in from rest');
+}
 let comboTime=0;
 const comboPlayer=createActorActionPlayer(()=>comboTime,()=>wall+comboTime);
 const cue=makeActorAction('expression','joy',4,'blend',wall,'combo','star','smirk',{scene:'aether'},'triangle',{scene:'ember'});

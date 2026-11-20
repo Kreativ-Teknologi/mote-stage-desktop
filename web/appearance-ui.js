@@ -8,10 +8,10 @@ export function createAppearanceUI({getState,setState,notify,onPresetsChange}){
   const history=[];
   function apply(change,key='action'){
     const before=pickAppearance(getState()),after=pickAppearance({...getState(),...change});
-    if(JSON.stringify(before)===JSON.stringify(after))return;
+    if(JSON.stringify(before)===JSON.stringify(after))return false;
     const now=performance.now();
     if(key!==lastEdit||now-lastAt>700){history.push(before);if(history.length>24)history.shift();}
-    lastEdit=key;lastAt=now;setState(change);update();
+    lastEdit=key;lastAt=now;setState(change);update();return true;
   }
   id('undoAppearance').addEventListener('click',()=>{const previous=history.pop();if(!previous)return;lastEdit='';setState(previous);update();});
   id('resetAppearanceSection').addEventListener('click',()=>{lastEdit='';apply(resetAppearanceSection(getState(),panel==='starcolor'?'stars':panel),'reset');notify('Reset '+({surface:'surface',motion:'motion',color:'color and light',animation:'color motion',stars:'stars',starcolor:'star colors'}[panel]||panel)+'. Undo is available.');});
@@ -47,7 +47,7 @@ export function createAppearanceUI({getState,setState,notify,onPresetsChange}){
     id('shaderHex'+i).addEventListener('change',e=>update(e.target.value.startsWith('#')?e.target.value:'#'+e.target.value));
   }
   id('resetColors').addEventListener('click',()=>apply({customColors:null,hueShift:0,colorSaturation:1,colorGain:1},'resetColors'));
-  function load(record){selectedId=record.id;id('presetName').value=record.name;lastEdit='';apply(record.appearance,'load');notify('Loaded '+record.name+'.');update();}
+  function load(record){selectedId=record.id;id('presetName').value=record.name;lastEdit='';const changed=apply(record.appearance,'load');notify('Loaded '+record.name+'.');update();return changed;}
   function render(){
     const items=store.list(),signature=JSON.stringify([items,selectedId]);
     if(signature===lastList)return;lastList=signature;
@@ -100,6 +100,6 @@ export function createAppearanceUI({getState,setState,notify,onPresetsChange}){
   }
   update();return {update,list:store.list,loadPreset:presetId=>{
     const record=store.list().find(preset=>preset.id===presetId);
-    if(record)load(record);
+    return record?load(record):false;
   }};
 }

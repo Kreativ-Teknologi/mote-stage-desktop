@@ -8,11 +8,16 @@ export function createPaletteUniforms(THREE){return {uColorA:{value:new THREE.Ve
 const srgbToLinear=x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4;
 const linearToSrgb=x=>x<=.0031308?x*12.92:1.055*x**(1/2.4)-.055;
 export function paletteHex(index){const p=PALETTES[Math.max(0,Math.min(3,index))];return [p.a,p.b,p.c].map(rgb=>'#'+rgb.map(x=>Math.round(Math.max(0,Math.min(1,linearToSrgb(x)))*255).toString(16).padStart(2,'0')).join(''));}
-export function applyPalette(uniforms,index,customColors=null,hue=0,saturation=1,gain=1){
+export const hexToLinear=hex=>[1,3,5].map(i=>srgbToLinear(parseInt(hex.slice(i,i+2),16)/255));
+export function resolvePalette(index,customColors){
   const p=PALETTES[Math.max(0,Math.min(3,Math.round(Number(index)||0)))];
-  const colors=Array.isArray(customColors)&&customColors.length===3&&customColors.every(x=>/^#[0-9a-f]{6}$/i.test(x))?customColors.map(hex=>[1,3,5].map(i=>srgbToLinear(parseInt(hex.slice(i,i+2),16)/255))):[p.a,p.b,p.c];
+  const custom=Array.isArray(customColors)&&customColors.length===3&&customColors.every(x=>/^#[0-9a-f]{6}$/i.test(x));
+  return {colors:custom?customColors.map(hexToLinear):[p.a,p.b,p.c],power:custom?1:p.power};
+}
+export function applyPalette(uniforms,index,customColors=null,hue=0,saturation=1,gain=1,resolved=null){
+  const {colors,power}=resolved??resolvePalette(index,customColors);
   for(const [i,key] of ['uColorA','uColorB','uColorC'].entries())uniforms[key].value.set(...colors[i]);
-  uniforms.uPalettePower.value=customColors?1:p.power;uniforms.uHueShift.value=hue*Math.PI/180;uniforms.uColorSaturation.value=saturation;uniforms.uColorGain.value=gain;
+  uniforms.uPalettePower.value=power;uniforms.uHueShift.value=hue*Math.PI/180;uniforms.uColorSaturation.value=saturation;uniforms.uColorGain.value=gain;
 }
 export const paletteGLSL=`
   uniform vec3 uColorA,uColorB,uColorC;uniform float uPalettePower,uHueShift,uColorSaturation,uColorGain,uPalettePhase,uDynamicHue,uDynamicGain;
