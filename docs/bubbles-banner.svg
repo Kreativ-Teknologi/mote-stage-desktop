@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title">
+  <title id="title">Bubbles by Kreativ Teknologi and MKRshift</title>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#111015"/><stop offset="1" stop-color="#07070a"/></linearGradient>
+    <linearGradient id="rim" x2="1" y2="1"><stop stop-color="#f9aacd"/><stop offset=".46" stop-color="#8fbbff"/><stop offset="1" stop-color="#b389e7"/></linearGradient>
+    <radialGradient id="glass" cx=".65" cy=".28" r=".76"><stop stop-color="#11101e"/><stop offset=".66" stop-color="#101329"/><stop offset=".89" stop-color="#34396a"/><stop offset="1" stop-color="#b2a6e1"/></radialGradient>
+    <radialGradient id="halo"><stop offset=".48" stop-color="#917aff" stop-opacity=".3"/><stop offset=".73" stop-color="#7461b5" stop-opacity=".18"/><stop offset="1" stop-color="#57498e" stop-opacity="0"/></radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="13"/></filter>
+    <filter id="bloom"><feGaussianBlur stdDeviation="5"/></filter>
+    <clipPath id="orb"><circle cx="1006" cy="180" r="115"/></clipPath>
+  </defs>
+  <rect width="1280" height="360" rx="20" fill="url(#bg)"/>
+  <g fill="#b5a5e7" opacity=".5">
+    <circle cx="734" cy="88" r="1.4"/><circle cx="803" cy="250" r="1.6"/><circle cx="857" cy="124" r="2"/>
+    <circle cx="1153" cy="81" r="1.6"/><circle cx="1215" cy="231" r="2"/><circle cx="1156" cy="270" r="1.1"/>
+    <circle cx="1057" cy="316" r="1.2"/><circle cx="947" cy="33" r="1.3"/><circle cx="1226" cy="113" r="1.1"/>
+  </g>
+  <circle cx="1006" cy="180" r="178" fill="url(#halo)"/>
+  <circle cx="1006" cy="180" r="115" fill="url(#glass)" stroke="url(#rim)" stroke-width="2"/>
+  <g clip-path="url(#orb)" fill="none">
+    <path d="M902 110C887 197 962 247 1039 224c46-14 61-46 82-78" stroke="url(#rim)" stroke-width="32" opacity=".66" filter="url(#blur)"/>
+    <path d="M915 92c-15 55 31 75 74 100s90 33 138 14" stroke="#f99ec8" stroke-width="16" opacity=".47" filter="url(#blur)"/>
+    <path d="M901 146c12 80 93 122 163 97" stroke="#8fcbff" stroke-width="9" opacity=".82" filter="url(#bloom)"/>
+  </g>
+  <g fill="#f6f0ff">
+    <ellipse cx="972" cy="169" rx="15" ry="9" filter="url(#bloom)"/><ellipse cx="1040" cy="169" rx="15" ry="9" filter="url(#bloom)"/>
+    <ellipse cx="972" cy="169" rx="12" ry="7"/><ellipse cx="1040" cy="169" rx="12" ry="7"/>
+  </g>
+  <path d="M985 202q21 15 42 0" fill="none" stroke="#f6f0ff" stroke-width="5" stroke-linecap="round"/>
+  <g font-family="system-ui, -apple-system, sans-serif">
+    <text x="84" y="111" font-size="15" fill="#bdb1d8" letter-spacing="5">MOTE STAGE</text>
+    <text x="78" y="205" font-size="94" font-weight="760" fill="#f6f3fb">Bubbles</text>
+    <text x="84" y="260" font-size="22" fill="#d0c6e1">A live avatar for the theater</text>
+    <text x="84" y="311" font-size="15" fill="#b0a7c3">Kreativ Teknologi × MKRshift</text>
+  </g>
+</svg>
