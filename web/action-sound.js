@@ -27,6 +27,36 @@ const cues={
   smirk:[['tone',.14,.24,417,492],['tone',.43,.25,580,528]],
   squint:[['tone',.12,.31,510,350],['tone',.54,.16,355,355]],
   disgust:[['grit',.15,.31,298,91],['air',.38,.27,1140,410]],
+  tryingToRemember:[['tone',.21,.32,320,475],['tone',1.35,.32,460,315]],
+  catchingOn:[['tone',.27,.12,320,382],['tone',.73,.12,390,475],['tone',1.23,.23,460,640]],
+  almostCrying:[['tone',.55,.65,420,329],['air',1.08,.50,690,290]],
+  braveFace:[['air',.18,.22,980,450],['tone',.66,.43,330,510]],
+  sideEye:[['tone',.36,.24,510,345],['tone',1.45,.16,390,302]],
+  cushionBounce:[['tone',.32,.19,170,72],['tone',.60,.23,340,478],['tone',1.10,.16,460,565]],
+  sneeze:[['air',.27,.45,450,1170],['air',.91,.31,2900,530]],
+  yawn:[['air',.45,1.48,740,360]],
+  gaspThenGrin:[['air',.15,.29,1240,2230],['tone',.72,.53,440,784]],
+  holdingBreath:[['air',.23,.48,390,990],['air',2.24,.36,760,280]],
+  nervousLaugh:[['tone',.31,.18,530,430],['tone',.82,.19,580,430]],
+  nope:[['tone',.18,.21,380,260],['tone',.61,.24,330,207]],
+  hiccup:[['tone',.19,.12,335,590],['tone',.86,.15,394,645]],
+  queasy:[['tone',.36,.53,390,267],['grit',.84,.35,178,133]],
+  deflated:[['air',.30,1.13,1100,280],['tone',.55,.78,310,155]],
+  startledFreeze:[['air',.12,.19,1980,540],['tone',.18,.25,620,335]],
+  sheepish:[['tone',.29,.39,490,345],['tone',1.11,.31,365,465]],
+  aha:[['tone',.42,.16,392,587],['tone',.55,.43,784,880]],
+  suspicious:[['tone',.28,.30,380,310],['tone',1.15,.38,290,378]],
+  offended:[['grit',.19,.21,235,105],['tone',.74,.32,470,340]],
+  bored:[['tone',.38,.80,315,185]],
+  pleading:[['tone',.29,.48,330,480],['tone',1.23,.39,480,399]],
+  smug:[['tone',.42,.22,310,370],['tone',.81,.43,450,510]],
+  giggleFit:[['tone',.28,.13,415,487],['tone',.67,.13,470,550],['tone',1.08,.24,511,670]],
+  anticipation:[['air',.22,.64,470,1420],['tone',.90,.39,330,550]],
+  incredulous:[['tone',.28,.28,520,290],['tone',.71,.42,349,390]],
+  bracing:[['grit',.23,.30,154,95],['air',.91,.47,790,380]],
+  mischievous:[['tone',.31,.20,582,470],['tone',.87,.37,480,735]],
+  flustered:[['tone',.21,.15,415,570],['tone',.66,.17,590,400],['air',.85,.30,1180,620]],
+  wonder:[['tone',.31,.64,330,440],['tone',.85,.72,495,660]],
   deadpan:[['tone',.64,.12,261,245]],
   doubleTake:[['tone',.18,.19,416,270],['tone',.71,.24,300,710]],
   sigh:[['air',.17,.45,440,1080],['air',.78,1.12,950,190]],
@@ -35,6 +65,25 @@ const cues={
   stifledLaugh:[['tone',.38,.14,400,510],['tone',.91,.15,445,550]],
   explosion:[['grit',.05,.38,94,185],['tone',.43,.54,119,40],['air',.43,.89,4200,280],['tone',1.46,.63,185,740]],
   rainbow:[['tone',0,.30,392,523],['tone',.25,.33,523,660],['tone',.49,.36,660,784],['tone',.73,.58,784,1047]],
+  pixelCascade:[['grit',.22,.25,480,206],['tone',.51,.29,242,480],['grit',1.02,.32,362,158],['tone',2.10,.37,290,720]],
+  blueprint:[['tone',.17,.94,410,730],['tone',1.18,.15,780,790],['air',1.98,.64,1340,460]],
+  paperTear:[['grit',.15,.41,280,170],['air',.32,.63,2300,570],['tone',1.71,.48,455,270]],
+  iris:[['grit',.16,.43,212,141],['tone',.59,.46,382,255],['air',1.65,.51,650,1240]],
+  stageTilt:[['air',.27,.54,430,1680],['tone',.53,.37,253,396],['tone',1.39,.38,340,246]],
+  comicBurst:[['tone',.31,.19,240,110],['air',.32,.19,2660,460],['tone',1.07,.22,315,142]],
+  disco:[['tone',.32,.14,135,75],['tone',.72,.14,142,80],['tone',1.12,.14,135,75],['tone',1.52,.14,142,80],['tone',1.92,.31,220,330]],
+  curtainCall:[['air',.20,.85,550,1660],['tone',.62,.58,392,587],['tone',1.31,.82,523,784]],
+  popcorn:[['tone',.38,.11,460,280],['tone',.88,.13,540,260],['tone',1.46,.13,640,295],['air',1.61,.3,1850,565]],
+  lightspeed:[['grit',.13,.52,125,218],['air',.54,1.88,470,2360],['tone',.78,1.57,224,520],['air',2.56,.56,2180,395]],
+  snowGlobe:[['air',.22,.37,820,1690],['air',.55,.43,920,1750],['tone',1.04,.63,830,660],['tone',1.53,.85,550,460]],
+  nightfall:[['air',.23,.85,1170,280],['tone',.71,1.08,330,165],['tone',1.95,.52,240,480]],
+  glassFold:[['air',.22,1.53,610,1560],['tone',.78,1.16,458,725]],
+  flipbook:[['grit',.26,.11,250,165],['grit',.75,.11,325,190],['grit',1.23,.13,385,220],['tone',1.75,.22,395,245]],
+  tidalRoll:[['air',.20,1.91,360,1250],['tone',.55,1.39,173,266],['air',1.46,1.07,940,250]],
+  figureEight:[['tone',.18,.79,420,680],['tone',.98,.88,690,415],['air',1.91,.56,920,285]],
+  slingshot:[['air',.12,1.82,520,2200],['tone',1.17,.62,300,570],['air',3.13,.34,1870,560]],
+  meteorDive:[['tone',.20,1.0,335,752],['air',1.28,1.12,3070,380],['tone',2.12,.43,240,100]],
+  phaseJump:[['tone',.30,.17,380,680],['tone',.78,.18,535,898],['tone',1.30,.21,654,1120],['air',3.17,.44,1350,570]],
   comet:[['air',.12,2.90,900,1980],['tone',.52,2.35,680,220],['air',3.14,.52,2100,520],['tone',3.22,.58,210,475]],
   shockwave:[['tone',.13,.46,100,45],['air',.18,.40,2100,360],['tone',.63,.39,83,42]],
   eclipse:[['tone',.14,1.37,240,115],['tone',.82,1.12,390,488]],
@@ -90,7 +139,14 @@ export function actionSoundPlan(name,duration=4000){
   return notes.map(([type,at,length,from,to,level=1,pan=0,panEnd=pan])=>({type,at:at*scale,length:length*scale,from,to,level,pan,panEnd}));
 }
 export function createActionSound(){
-  let context=null,noise=null,current=null;
+  let context=null,noise=null,current=null,paused=false;
+  async function setPaused(value){
+    if(paused===value)return;
+    paused=value;
+    if(!context)return;
+    if(paused)await context.suspend();
+    else if(current)await context.resume();
+  }
   function stop(){
     if(!current)return;
     const voice=current;current=null;
@@ -115,7 +171,7 @@ export function createActionSound(){
     bus.connect(limiter).connect(context.destination);
     const voice={bus,sources:[]};current=voice;
     let pending=plan.length;
-    try{if(context.state==='suspended')await context.resume();}
+    try{if(paused)await context.suspend();else if(context.state==='suspended')await context.resume();}
     catch(error){bus.disconnect();limiter.disconnect();if(current===voice)current=null;throw error;}
     if(current!==voice){bus.disconnect();limiter.disconnect();return;}
     const start=context.currentTime+.015+delay;
@@ -156,5 +212,5 @@ export function createActionSound(){
       source.start(at);source.stop(end+.005);
     }
   }
-  return {play,stop};
+  return {play,stop,setPaused};
 }

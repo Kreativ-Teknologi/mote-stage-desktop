@@ -27,6 +27,11 @@ const filter=createTrackingFilter();filter.update({yaw:0,shapes:{eyeBlinkLeft:0}
 for(let i=1;i<=20;i++)filtered=filter.update({yaw:i%2?.01:-.01,shapes:{eyeBlinkLeft:0}},i*16);
 assert.ok(Math.abs(filtered.yaw)<.005,'Small head jitter is smoothed');
 filtered=filter.update({yaw:.25,shapes:{eyeBlinkLeft:.65,jawOpen:.5}},386);assert.ok(filtered.shapes.eyeBlinkLeft>.63,'Blink attack remains fast enough to close eyes');
+const fastFilter=createTrackingFilter();
+fastFilter.update({shapes:{eyeBlinkLeft:0,eyeBlinkRight:0,jawOpen:0}},0);
+const fastBlink=fastFilter.update({shapes:{eyeBlinkLeft:.65,eyeBlinkRight:0,jawOpen:.6}},33);
+assert.ok(fastBlink.shapes.eyeBlinkLeft>.5&&fastBlink.shapes.eyeBlinkRight===0,'One camera frame closes only the tracked eye');
+assert.ok(fastBlink.shapes.jawOpen>.43,'One camera frame follows a quick syllable');
 for(const k of ['yaw','pitch','roll','x','y','z'])assert.ok(Number.isFinite(filtered[k]),'Filter safely handles legacy samples without translation');
 assert.equal(filter.update({yaw:.8,shapes:{}},2000).yaw,.8,'Long interruption reseeds filter instead of dragging old pose');
 const memory=new Map(),storage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};let next=0;

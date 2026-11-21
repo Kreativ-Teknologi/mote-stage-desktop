@@ -76,13 +76,14 @@ import './orb-renderer.js';
   const webcam=STAGE_MODE?null:createWebcam(id('cameraPreview'),id('cameraStatus'));
   const trackingFailsafe=createTrackingFailsafe();
   const actorActions=createActorActionPlayer();
+  let posePausedAt=null,posePauseOffset=0;
   const actionSound=STAGE_MODE?null:createActionSound();
   const previewActions=createActorActionPlayer();
   const blendLiveLook=createLookTransition();
   const blendPreviewLook=createLookTransition();
   let emotePreviewRenderer,previewBodyForm;
   let cameraRequested=false,trackingTestUntil=0;
-  let tracking=null,trackingAt=0,frozenTracking=null,lastTrackingSend=0;
+  let tracking=null,trackingAt=0,lastTrackingSend=0,lastSentTracking=null;
   let stageAssetsReceived=false;
   let stageSeenAt = 0;
   let meter = {target:0,smoothed:0,liveAt:0,lastSent:0,
@@ -180,6 +181,11 @@ import './orb-renderer.js';
   sceneStars();
 
   function applyState(){
+    actorActions.setPaused(!!state.freeze);
+    const time=performance.now();
+    if(state.freeze)posePausedAt??=time;
+    else if(posePausedAt!==null){posePauseOffset+=time-posePausedAt;posePausedAt=null;}
+    actionSound?.setPaused(!!state.freeze).catch(error=>notify('Sound FX pause failed: '+error.message));
     const surface=id('stageSurface');
     surface.dataset.scene=SCENES.includes(state.scene)?state.scene:'aether';
     const black=!!(state.blackout||state.trackingBlackout);
@@ -732,7 +738,7 @@ import './orb-renderer.js';
   if(STAGE_MODE&&!orb){console.error('Orb renderer did not load.');if(!STAGE_MODE)notify('Unable to load the orb renderer.');}
   else if(orb?.fallback&&!STAGE_MODE)notify(orb.error||'Three.js unavailable. Run setup_offline.command while online.');
   let lastMonitorFrame=0,monitorDelta=0;
-  let animationSeconds=0,previousFrame=performance.now(),frozenLevel=0,frozenPose=null;
+  let animationSeconds=0,previousFrame=performance.now(),frozenLevel=0,frozenHead=null;
   const emotionNumber=Object.fromEntries(MOODS.map((name,i)=>[name,i]));
   function animateFace(now){
     const dt=Math.min(.06,Math.max(0,(now-previousFrame)/1000));previousFrame=now;
@@ -754,13 +760,13 @@ import './orb-renderer.js';
     const isBlinking=now<blink.until;
     const blinkAmt=isBlinking?Math.sin(Math.PI*(blink.until-now)/170):0;
     const liveTracking=tracking&&now-trackingAt<700?tracking:null;
-    if(!state.freeze)frozenTracking=liveTracking;
-    const cam=state.freeze?frozenTracking:liveTracking;
-    const head=cameraHeadPose(cam,gestureOffset,{free:state.freeHeadMovement,amount:state.headMovement,tilt});
-    const pose={head,webcamFace:state.cameraFace?cam?.shapes:null,time:s,level:reacting,amplitude:energy,
+    const liveHead=cameraHeadPose(liveTracking,gestureOffset,{free:state.freeHeadMovement,amount:state.headMovement,tilt});
+    if(!state.freeze)frozenHead=liveHead;
+    const liveHeadWhileFrozen=!!(state.freeze&&state.freeHeadMovement&&liveTracking);
+    const pose={head:state.freeze&&!liveHeadWhileFrozen?frozenHead:liveHead,liveHeadWhileFrozen,webcamFace:state.cameraFace?liveTracking?.shapes:null,
+      time:s,backgroundTime:now/1000,level:reacting,amplitude:energy,
       emotion:emotionNumber[state.emotion]||0,bass:meter.bass,mid:meter.mid,treble:meter.treble,
       speaking:!isListener,blink:clamp(blinkAmt),operatorBlink:gestureOffset.blink,tilt,intensity};
-    if(!state.freeze||!frozenPose)frozenPose=pose;
     const actorAction=actorActions.sample(now);
     monitorDelta+=dt;
     const showPreview=!STAGE_MODE&&document.body.dataset.tab==='emotes';
@@ -780,8 +786,8 @@ import './orb-renderer.js';
       const visual=actorActions.visual(now);
       const override=state.quickLookOverride;
       const appearance=override?.id===visual?.id&&override?.phase===(visual?.phaseIndex??0)?null:visual?.appearance;
-      orb?.draw({...blendLiveLook(getRenderSettings({...state,...appearance}),now),...(state.freeze?frozenPose:pose),freeze:state.freeze,
-        performanceTime:showClock.sample(now),frameDelta:STAGE_MODE?dt:Math.min(.06,monitorDelta),actorAction,visualAction:visual,actionSurface:state.actionSurface,actorHeadOffset:actorGesturePose(visual,(state.freeze?frozenPose:pose).head),
+      orb?.draw({...blendLiveLook(getRenderSettings({...state,...appearance}),now),...pose,freeze:state.freeze,
+        performanceTime:showClock.sample((posePausedAt??now)-posePauseOffset),frameDelta:STAGE_MODE?dt:Math.min(.06,monitorDelta),actorAction,visualAction:visual,actionSurface:state.actionSurface,actorHeadOffset:actorGesturePose(visual,state.freeze?frozenHead:pose.head),
         crtChromatic:Math.sin(Math.PI*clamp((now-powerTransitionAt)/850))});
     }
     monitorDelta=0;}
@@ -880,7 +886,11 @@ import './orb-renderer.js';
     id('testTrackingLoss').disabled=!webcam.active||!safety.armed||state.trackingFailsafe===false||testing;
     id('trackingFailsafeStatus').textContent=safety.status;
     if(state.trackingBlackout!==safety.blackout){state.trackingBlackout=safety.blackout;broadcastState();}
-    if(now-lastTrackingSend>66){post({type:'tracking',sample:testing?null:tracking});lastTrackingSend=now;}
+    const outputTracking=testing?null:tracking;
+    if(outputTracking!==lastSentTracking||now-lastTrackingSend>=150){
+      post({type:'tracking',sample:outputTracking});
+      lastSentTracking=outputTracking;lastTrackingSend=now;
+    }
     updateCameraControls();
     updateAudio(now);driveExpression(now);updateActorControls();
     if(now-heartbeatAt>1000){

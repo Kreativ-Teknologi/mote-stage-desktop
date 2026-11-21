@@ -11,10 +11,10 @@ function waitForStartup(promise,signal,timeoutMs,message){
 }
 // Camera frames stay on this device; only animation values reach the stage tab.
 export function createWebcam(video,status){
-  let worker,stream,active=false,starting=false,startupController=null,busy=false,last=0,sample=null,raw=null,seen=0,origin=null,positionOrigin=null,generation=0;
+  let worker,stream,active=false,starting=false,startupController=null,busy=false,last=-Infinity,lastVideoFrame=null,sample=null,raw=null,seen=0,origin=null,positionOrigin=null,generation=0;
   let calibration=null,capture=null,calibrationStatus='Capture a relaxed face to personalize tracking.';
   const filter=createTrackingFilter();
-  function stop(){generation++;startupController?.abort();startupController=null;starting=false;active=false;busy=false;sample=null;raw=null;origin=null;positionOrigin=null;capture=null;filter.reset();worker?.terminate();worker=null;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;status.textContent='Camera off';calibrationStatus=calibration?'Calibration retained. Enable webcam to track.':'Enable webcam and find your face before calibrating.';}
+  function stop(){generation++;startupController?.abort();startupController=null;starting=false;active=false;busy=false;last=-Infinity;lastVideoFrame=null;sample=null;raw=null;origin=null;positionOrigin=null;capture=null;seen=0;filter.reset();worker?.terminate();worker=null;stream?.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;status.textContent='Camera off';calibrationStatus=calibration?'Calibration retained. Enable webcam to track.':'Enable webcam and find your face before calibrating.';}
   function acceptCapture(result){
     if(!result.done)return;
     capture=null;
@@ -24,7 +24,7 @@ export function createWebcam(video,status){
   }
   function beginCapture(kind){
     if(!active||!raw||performance.now()-seen>350){calibrationStatus='A tracked face must be visible before capture.';return false;}
-    try{capture=createCalibrationCapture(kind,calibration,performance.now());calibrationStatus=kind==='neutral'?'Hold still, relax your mouth, and keep your eyes open…':'Blink, smile, raise brows and open your mouth comfortably…';return true;}
+    try{capture=createCalibrationCapture(kind,calibration,performance.now());calibrationStatus=kind==='neutral'?'Hold still, relax your mouth, and keep your eyes open…':'Blink, smile on each side, puff your cheeks, and move your mouth and eyes…';return true;}
     catch(error){calibrationStatus=error.message;return false;}
   }
   function centerHead(){if(active&&raw&&performance.now()-seen<350){origin={yaw:raw.yaw,pitch:raw.pitch,roll:raw.roll,position:raw.position?{...raw.position}:null};filter.reset();status.textContent='Head centered';return true;}status.textContent='Find your face before centering';return false;}
@@ -48,10 +48,11 @@ export function createWebcam(video,status){
             if(data.sample){
               raw=data.sample;seen=now;if(!positionOrigin&&raw.position)positionOrigin={...raw.position};
               if(capture)acceptCapture(capture.add(raw,now));
-              sample=filter.update(normalizeActorSample(raw,calibration,origin,positionOrigin),now);
+              sample=filter.update(normalizeActorSample(raw,calibration,origin,positionOrigin),data.time??now);
               status.textContent='Tracking head · facial override is optional';
             }else{
-              raw=null;sample=null;status.textContent='Face not in view';
+              raw=null;
+              if(now-seen>=140){sample=null;status.textContent='Face not in view';}
               if(capture&&now-seen>350){capture=null;calibrationStatus='Face lost during capture. Keep your face visible and try again.';}
             }
           }
@@ -72,11 +73,17 @@ export function createWebcam(video,status){
     get active(){return active;},get starting(){return starting;},
     tick(now){
       if(capture&&now-seen>600){capture=null;calibrationStatus='Face lost during capture. Keep your face visible and try again.';}
-      if(active&&!busy&&now-last>66&&video.readyState>=2){
-        busy=true;last=now;const run=generation;
-        createImageBitmap(video).then(frame=>{if(run!==generation||!worker){frame.close();return;}worker.postMessage({type:'frame',frame,time:now},[frame]);}).catch(()=>{busy=false;});
+      const frameId=video.getVideoPlaybackQuality?.().totalVideoFrames||video.currentTime;
+      if(active&&!busy&&now-last>=30&&video.readyState>=2&&frameId!==lastVideoFrame){
+        busy=true;last=now;lastVideoFrame=frameId;const run=generation;
+        createImageBitmap(video).then(frame=>{if(run!==generation||!worker){frame.close();return;}worker.postMessage({type:'frame',frame,time:now},[frame]);}).catch(()=>{if(run===generation){busy=false;lastVideoFrame=null;}});
       }
-      if(!active||!sample||now-seen>600)return null;
+      if(!active||!sample)return null;
+      // Hold a missed detection briefly, then clear the pose even if the camera stalls.
+      if(now-seen>=(!raw?140:350)){
+        sample=null;raw=null;status.textContent='Face not in view';
+        return null;
+      }
       return sample;
     }
   };

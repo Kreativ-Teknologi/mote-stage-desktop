@@ -14,7 +14,7 @@ for(const name of ['smirk','squint','disgust']){
   assert.ok(makeActorAction('expression',name,4,'blend',0,name));
   assert.ok(Object.values(libraryEmoteMotion(name,450)).some(value=>Math.abs(value)>.1));
 }
-for(const [name,peak] of Object.entries({deadpan:900,doubleTake:490,sigh:1410,wince:300,tender:950,stifledLaugh:480})){
+for(const [name,peak] of Object.entries({deadpan:900,doubleTake:490,sigh:1410,wince:300,tender:950,stifledLaugh:480,anticipation:1280,incredulous:880,bracing:650,mischievous:510,flustered:900,wonder:1450,suspicious:620,offended:350,bored:1450,pleading:840,smug:1220,giggleFit:1160,hiccup:240,queasy:740,deflated:1620,startledFreeze:220,sheepish:720,aha:510,sneeze:960,yawn:1180,gaspThenGrin:280,holdingBreath:910,nervousLaugh:1740,nope:300,tryingToRemember:860,catchingOn:1320,almostCrying:960,braveFace:280,sideEye:620,cushionBounce:380})){
   const cue=makeActorAction('expression',name,4,'blend',0,name);
   assert.equal(cue?.name,name);
   const motion=libraryEmoteMotion(name,peak);

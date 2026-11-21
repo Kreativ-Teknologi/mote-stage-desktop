@@ -32,7 +32,7 @@ export function speechMouthPose({opening=0,voice=0,width=.17,curve=0,skew=0,puck
     // Give more travel to the lower jaw while keeping the upper edge steadier.
     drop:height*.32,
     curve:curvature,
-    skew:clamp(skew,-.045,.045),
+    skew:clamp(skew,-.105,.105),
     light:featureLight(drive/.22),
     articulation:drive
   };

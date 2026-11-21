@@ -17,7 +17,9 @@ export function normalizeEmoteLayout(value){
   if(!Array.isArray(value))return defaultEmoteLayout();
   const keys=new Set();
   return defaultEmoteLayout().map((_,index)=>{
-    const slot=value[index];
+    const savedSlot=value[index];
+    const slot=!availableActions.includes(savedSlot?.name)&&availableActions.includes(savedSlot?.followUp)
+      ?removeSlotPart(savedSlot,'emote'):savedSlot;
     const form=BODY_FORMS.includes(slot?.form)?slot.form:null;
     if(!availableActions.includes(slot?.name))return form?{form}:null;
     const key=validKey(slot.key)&&!keys.has(slot.key)?slot.key:'';

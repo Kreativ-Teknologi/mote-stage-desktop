@@ -15,11 +15,11 @@ export function createGlassLid(THREE){
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();g.computeBoundingSphere();return g;
 }
-export function deformGlassMouth(geometry,template,width,height,curve,cavity=false,skew=0){
+export function deformGlassMouth(geometry,template,width,height,curve,cavity=false,skew=0,apertureBias=0){
   const a=geometry.attributes.position;
   for(let i=0;i<a.count;i++){
     const bx=template[i*3],by=template[i*3+1],bz=template[i*3+2];
-    if(cavity){a.setXYZ(i,bx*width,by*height+curve*(1.-bx*bx)+skew*bx,bz*.035-.024);continue;}
+    if(cavity){a.setXYZ(i,bx*width,by*height*(1+bx*apertureBias)+curve*(1.-bx*bx)+skew*bx,bz*.035-.024);continue;}
     const theta=Math.atan2(by,bx),c=Math.cos(theta),s=Math.sin(theta);
     const radial=(Math.hypot(bx,by)-1.)/.09;
     const normalX=height*c+2.*curve*c*s,normalY=width*s;

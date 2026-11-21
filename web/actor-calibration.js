@@ -3,7 +3,11 @@ const finite=(v,f=0)=>Number.isFinite(Number(v))?Number(v):f;
 const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,finite(v)))||0;
 const clone=x=>JSON.parse(JSON.stringify(x));
 const angle=v=>Math.atan2(Math.sin(v),Math.cos(v));
-const keys=['jawOpen','eyeBlinkLeft','eyeBlinkRight','mouthSmileLeft','mouthSmileRight','mouthFrownLeft','mouthFrownRight','mouthPucker','browDownLeft','browDownRight','browInnerUp','browOuterUpLeft','browOuterUpRight','eyeWideLeft','eyeWideRight','eyeSquintLeft','eyeSquintRight'];
+const keys=['jawOpen','eyeBlinkLeft','eyeBlinkRight','mouthSmileLeft','mouthSmileRight','mouthFrownLeft','mouthFrownRight','mouthPucker','browDownLeft','browDownRight','browInnerUp','browOuterUpLeft','browOuterUpRight','eyeWideLeft','eyeWideRight','eyeSquintLeft','eyeSquintRight',
+  'jawLeft','jawRight','mouthLeft','mouthRight','mouthStretchLeft','mouthStretchRight',
+  'mouthDimpleLeft','mouthDimpleRight','mouthUpperUpLeft','mouthUpperUpRight','mouthLowerDownLeft','mouthLowerDownRight',
+  'mouthPressLeft','mouthPressRight','mouthFunnel','mouthClose','cheekPuff','cheekSquintLeft','cheekSquintRight',
+  'eyeLookInLeft','eyeLookInRight','eyeLookOutLeft','eyeLookOutRight','eyeLookUpLeft','eyeLookUpRight','eyeLookDownLeft','eyeLookDownRight'];
 export const CALIBRATION_KEYS=Object.freeze(keys);
 export function sanitizeCalibration(input){
   if(!input?.neutral||input.version!==1)return null;
@@ -42,7 +46,7 @@ export function createTrackingFilter(){
     }
     for(const [key,value] of Object.entries(sample.shapes||{})){
       const old=finite(previous.shapes[key]),blink=key.startsWith('eyeBlink');
-      const tau=blink?(value>old?.018:.045):key==='jawOpen'?.035:.065;
+      const tau=blink?(value>old?.009:.029):key==='jawOpen'?.024:(key.startsWith('mouth')||key.startsWith('lipGap')||key.startsWith('eyeLook'))?.041:.065;
       previous.shapes[key]=clamp(old+(finite(value)-old)*(1-Math.exp(-dt/tau)));
     }
     return clone(previous);
